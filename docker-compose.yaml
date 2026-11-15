@@ -1,0 +1,23 @@
+name: namgold-wedding
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: namgold-wedding-frontend
+    labels:
+      dev.dozzle.group: namgold.com
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: namgold-wedding-cloudflared
+    labels:
+      dev.dozzle.group: namgold.com
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - frontend
