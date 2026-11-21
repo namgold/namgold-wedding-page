@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -135,8 +136,8 @@ func TestHoneypotStoresNothing(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("honeypot: %d", w.Code)
 	}
-	list, _ := e.srv.store.AllMessages()
-	if len(list) != 0 {
+	_, c, _ := e.srv.store.ListMessages(MessageQuery{Sort: "date", Dir: "desc", Status: "all", Limit: 10})
+	if c.All != 0 {
 		t.Fatalf("honeypot stored a row")
 	}
 }
@@ -520,5 +521,105 @@ func TestTelegramUsesOneBotPerKind(t *testing.T) {
 	case c := <-calls:
 		t.Errorf("wish sent without a wish token: %v", c)
 	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+func TestAdminWishesSortFilterPage(t *testing.T) {
+	e := newEnv(t, nil)
+	st := e.srv.store
+	for _, n := range []string{"Zoe", "Ánh", "binh", "An"} { // ids 1..4
+		st.AddMessage(n, "hi "+n)
+	}
+	st.SetEnabled(2, false) // Ánh hidden
+	st.SetEnabled(3, false) // binh hidden
+	h := map[string]string{"Cf-Access-Jwt-Assertion": e.token(e.goodClaims(), "RS256")}
+	names := func(query string) string {
+		t.Helper()
+		w := e.do("GET", "/api/admin/messages"+query, "", h)
+		if w.Code != 200 {
+			t.Fatalf("%s: %d %s", query, w.Code, w.Body)
+		}
+		var out struct {
+			Messages []struct{ Name string }
+			Total    int
+			Counts   MessageCounts
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if out.Counts != (MessageCounts{All: 4, Shown: 2, Hidden: 2}) {
+			t.Errorf("%s counts: %+v", query, out.Counts)
+		}
+		var got []string
+		for _, m := range out.Messages {
+			got = append(got, m.Name)
+		}
+		return strings.Join(got, ",") + "|" + strconv.Itoa(out.Total)
+	}
+	for q, want := range map[string]string{
+		"":                                     "An,binh,Ánh,Zoe|4", // default: date, newest first
+		"?sort=date&dir=asc":                   "Zoe,Ánh,binh,An|4",
+		"?sort=name&dir=asc":                   "An,Ánh,binh,Zoe|4", // tone- and case-insensitive
+		"?sort=name&dir=desc":                  "Zoe,binh,Ánh,An|4",
+		"?sort=status&dir=asc":                 "binh,Ánh,An,Zoe|4", // hidden first, then newest
+		"?sort=status&dir=desc":                "An,Zoe,binh,Ánh|4",
+		"?status=hidden":                       "binh,Ánh|2",
+		"?status=shown&sort=name&dir=asc":      "An,Zoe|2",
+		"?sort=date&dir=desc&offset=1&limit=2": "binh,Ánh|4", // total ignores paging
+		"?offset=9":                            "|4",
+	} {
+		if got := names(q); got != want {
+			t.Errorf("%q: got %s, want %s", q, got, want)
+		}
+	}
+	for _, q := range []string{"?sort=enabled", "?dir=up", "?status=x", "?offset=-1", "?limit=0", "?limit=1001", "?limit=x", "?sort=id%3BDROP"} {
+		if c := e.do("GET", "/api/admin/messages"+q, "", h).Code; c != 400 {
+			t.Errorf("%q: %d, want 400", q, c)
+		}
+	}
+}
+
+func TestAdminRSVPSort(t *testing.T) {
+	e := newEnv(t, nil)
+	st := e.srv.store
+	st.AddRSVP(RSVP{Name: "Zoe", Side: "bride", Attending: true, Guests: 1}) // 1
+	st.AddRSVP(RSVP{Name: "Ánh", Side: "bride", Attending: true, Guests: 1}) // 2
+	st.AddRSVP(RSVP{Name: "an", Side: "groom", Attending: true, Guests: 1})  // 3
+	st.AddRSVP(RSVP{Name: "Zoe", Side: "bride", Attending: true, Guests: 2}) // 4: replaces 1
+	h := map[string]string{"Cf-Access-Jwt-Assertion": e.token(e.goodClaims(), "RS256")}
+	order := func(query string) string {
+		t.Helper()
+		w := e.do("GET", "/api/admin/rsvps"+query, "", h)
+		if w.Code != 200 {
+			t.Fatalf("%s: %d", query, w.Code)
+		}
+		var out struct {
+			Rsvps   []RSVP
+			Summary struct{ Responses int }
+		}
+		json.Unmarshal(w.Body.Bytes(), &out)
+		if out.Summary.Responses != 3 {
+			t.Errorf("%s: summary must not depend on sort: %d", query, out.Summary.Responses)
+		}
+		var ids []string
+		for _, r := range out.Rsvps {
+			ids = append(ids, strconv.FormatInt(r.ID, 10)+map[bool]string{true: "r", false: ""}[r.Superseded])
+		}
+		return strings.Join(ids, ",")
+	}
+	for q, want := range map[string]string{
+		"":                    "4,3,2,1r",
+		"?sort=date&dir=asc":  "1r,2,3,4",
+		"?sort=name&dir=asc":  "3,2,4,1r", // an, Ánh, Zoe (newest first), Zoe
+		"?sort=name&dir=desc": "4,1r,2,3",
+	} {
+		if got := order(q); got != want {
+			t.Errorf("%q: got %s, want %s", q, got, want)
+		}
+	}
+	for _, q := range []string{"?sort=guests", "?dir=x"} {
+		if c := e.do("GET", "/api/admin/rsvps"+q, "", h).Code; c != 400 {
+			t.Errorf("%q: %d, want 400", q, c)
+		}
 	}
 }

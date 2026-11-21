@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -270,14 +272,60 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"email": r.Context().Value(ctxKey{}).(string)})
 }
 
+const maxAdminPage = 1000
+
+// parseSortDir reads ?sort= and ?dir=. Defaults: newest date first. ok is false for a value not in the lists.
+func parseSortDir(q url.Values, sorts ...string) (sort, dir string, ok bool) {
+	sort, dir = valueOr(q, "sort", "date"), valueOr(q, "dir", "desc")
+	return sort, dir, slices.Contains(sorts, sort) && (dir == "asc" || dir == "desc")
+}
+
+func valueOr(q url.Values, key, def string) string {
+	if v := q.Get(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// parseMessageQuery reads ?sort=date|name|status &dir=asc|desc &status=all|hidden|shown &offset=N &limit=N.
+// With no params it returns the newest wishes first, as before (limit defaults to and is capped at maxAdminPage).
+func parseMessageQuery(q url.Values) (MessageQuery, bool) {
+	mq := MessageQuery{Status: valueOr(q, "status", "all"), Limit: maxAdminPage}
+	var ok bool
+	mq.Sort, mq.Dir, ok = parseSortDir(q, "date", "name", "status")
+	if !ok || !slices.Contains([]string{"all", "hidden", "shown"}, mq.Status) {
+		return mq, false
+	}
+	var err error
+	if v := q.Get("offset"); v != "" {
+		if mq.Offset, err = strconv.Atoi(v); err != nil || mq.Offset < 0 {
+			return mq, false
+		}
+	}
+	if v := q.Get("limit"); v != "" {
+		if mq.Limit, err = strconv.Atoi(v); err != nil || mq.Limit < 1 || mq.Limit > maxAdminPage {
+			return mq, false
+		}
+	}
+	return mq, true
+}
+
+// adminMessages: the response is {messages, total, counts}. total is the number of wishes matching the status
+// filter (what a virtual list sizes itself by); counts is over all wishes.
 func (s *Server) adminMessages(w http.ResponseWriter, r *http.Request) {
-	msgs, err := s.store.AllMessages()
+	q, ok := parseMessageQuery(r.URL.Query())
+	if !ok {
+		fail(w, 400, "invalid")
+		return
+	}
+	msgs, counts, err := s.store.ListMessages(q)
 	if err != nil {
 		slog.Error("db_error", "op", "admin_list_messages", "err", err)
 		fail(w, 500, "server")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"messages": msgs})
+	total := map[string]int{"all": counts.All, "hidden": counts.Hidden, "shown": counts.Shown}[q.Status]
+	writeJSON(w, 200, map[string]any{"messages": msgs, "total": total, "counts": counts})
 }
 
 func (s *Server) adminSetEnabled(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +379,14 @@ func (s *Server) adminDelete(event, op string, del func(int64) (bool, error)) ht
 	}
 }
 
+// adminRSVPs takes ?sort=date|name &dir=asc|desc (default: newest first). It sorts after the
+// "replaced" marks and the summary are computed, which need the whole list newest first.
 func (s *Server) adminRSVPs(w http.ResponseWriter, r *http.Request) {
+	sortBy, dir, ok := parseSortDir(r.URL.Query(), "date", "name")
+	if !ok {
+		fail(w, 400, "invalid")
+		return
+	}
 	list, err := s.store.AllRSVPs()
 	if err != nil {
 		slog.Error("db_error", "op", "admin_list_rsvps", "err", err)
@@ -352,7 +407,23 @@ func (s *Server) adminRSVPs(w http.ResponseWriter, r *http.Request) {
 		sum.add(x)
 		pl.add(x)
 	}
+	sortRSVPs(list, sortBy, dir)
 	writeJSON(w, 200, map[string]any{"rsvps": list, "summary": sum})
+}
+
+func sortRSVPs(list []RSVP, sortBy, dir string) {
+	slices.SortStableFunc(list, func(a, b RSVP) int {
+		c := cmp.Compare(a.ID, b.ID) // date order is id order
+		if sortBy == "name" {
+			if c = strings.Compare(foldName(a.Name), foldName(b.Name)); c == 0 {
+				return cmp.Compare(b.ID, a.ID) // same name: newest first, whatever dir is
+			}
+		}
+		if dir == "desc" {
+			return -c
+		}
+		return c
+	})
 }
 
 type rsvpSummary struct {

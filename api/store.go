@@ -2,10 +2,41 @@ package main
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
 )
+
+// collationName sorts names case- and tone-insensitively ("Ánh" next to "Anh", not after "Zoe"); SQLite's
+// built-in NOCASE only folds ASCII.
+const collationName = "NAME_FOLD"
+
+var viBase = func() map[rune]rune {
+	m := map[rune]rune{}
+	for base, forms := range map[rune]string{
+		'a': "àáảãạăằắẳẵặâầấẩẫậ", 'e': "èéẻẽẹêềếểễệ", 'i': "ìíỉĩị", 'o': "òóỏõọôồốổỗộơờớởỡợ",
+		'u': "ùúủũụưừứửữự", 'y': "ỳýỷỹỵ", 'd': "đ",
+	} {
+		for _, r := range forms {
+			m[r] = base
+		}
+	}
+	return m
+}()
+
+func foldName(s string) string {
+	return strings.Map(func(r rune) rune {
+		if b, ok := viBase[r]; ok {
+			return b
+		}
+		return r
+	}, strings.ToLower(s))
+}
+
+func init() {
+	sqlite.MustRegisterCollationUtf8(collationName, func(a, b string) int { return strings.Compare(foldName(a), foldName(b)) })
+}
 
 type Store struct{ db *sql.DB }
 
@@ -142,21 +173,50 @@ func (s *Store) PublicMessages(before int64, limit int) ([]Message, bool, error)
 	return out, more, rows.Err()
 }
 
-func (s *Store) AllMessages() ([]AdminMessage, error) {
-	rows, err := s.db.Query(`SELECT id,name,message,enabled,created_at FROM messages ORDER BY id DESC LIMIT 1000`)
+// MessageQuery is the admin wishes list query. Sort is "date", "name" or "status"; Dir is "asc" or "desc";
+// Status is "all", "hidden" or "shown". Offset/Limit page the result (the UI will page it for infinite scroll).
+type MessageQuery struct {
+	Sort, Dir, Status string
+	Offset, Limit     int
+}
+
+// MessageCounts are over all wishes, whatever the status filter is.
+type MessageCounts struct {
+	All    int `json:"all"`
+	Shown  int `json:"shown"`
+	Hidden int `json:"hidden"`
+}
+
+// ListMessages returns one page of wishes. The values in q must already be validated (parseMessageQuery);
+// they only ever pick a fixed SQL fragment, never get pasted in. Every order ends in a unique id, so paging
+// by offset never repeats or skips a row.
+func (s *Store) ListMessages(q MessageQuery) ([]AdminMessage, MessageCounts, error) {
+	var c MessageCounts
+	if err := s.db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(enabled),0) FROM messages`).Scan(&c.All, &c.Shown); err != nil {
+		return nil, c, err
+	}
+	c.Hidden = c.All - c.Shown
+	dir := map[string]string{"asc": "ASC", "desc": "DESC"}[q.Dir]
+	order := map[string]string{
+		"date":   "id " + dir,
+		"name":   "name COLLATE " + collationName + " " + dir + ", id DESC",
+		"status": "enabled " + dir + ", id DESC", // asc = hidden first
+	}[q.Sort]
+	where := map[string]string{"all": "", "hidden": "WHERE enabled=0", "shown": "WHERE enabled=1"}[q.Status]
+	rows, err := s.db.Query(`SELECT id,name,message,enabled,created_at FROM messages `+where+` ORDER BY `+order+` LIMIT ? OFFSET ?`, q.Limit, q.Offset)
 	if err != nil {
-		return nil, err
+		return nil, c, err
 	}
 	defer rows.Close()
 	out := []AdminMessage{}
 	for rows.Next() {
 		var m AdminMessage
 		if err := rows.Scan(&m.ID, &m.Name, &m.Message.Message, &m.Enabled, &m.CreatedAt); err != nil {
-			return nil, err
+			return nil, c, err
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	return out, c, rows.Err()
 }
 
 // SetEnabled reports whether a row with that id exists.
