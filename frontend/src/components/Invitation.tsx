@@ -16,6 +16,7 @@ import { Hero } from "./Hero";
 import { LangToggle } from "./LangToggle";
 import { Music } from "./Music";
 import { Reception } from "./Reception";
+import { RsvpButton } from "./RsvpButton";
 import { Schedule } from "./Schedule";
 import { Venue } from "./Venue";
 
@@ -68,6 +69,7 @@ export function Invitation({ initialLang, place }: { initialLang: Lang; place: P
             <Reception t={t} place={place} />
             <Venue t={t} place={place} />
             <Schedule t={t} place={place} />
+            <RsvpButton t={t} place={place} />
             <Guestbook t={t} />
             <GiftBox t={t} />
             <footer className="relative z-10 flex flex-col items-center px-6 pb-12 text-center md:px-10 md:pb-14">
