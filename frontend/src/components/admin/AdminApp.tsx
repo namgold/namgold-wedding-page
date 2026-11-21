@@ -1,6 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { api, type ApiResult } from "@/lib/api";
+import { usePagedRows, type Page } from "@/lib/usePagedRows";
+import { useRowSlots } from "@/lib/useRowSlots";
 
 type Msg = { id: number; name: string; message: string; enabled: boolean; createdAt: number };
 type Rsvp = {
@@ -8,6 +11,7 @@ type Rsvp = {
   dietary: string; message: string; createdAt: number; superseded: boolean;
 };
 type Counts = { responses: number; attending: number; guests: number; declined: number };
+type MsgCounts = { all: number; shown: number; hidden: number };
 type Summary = Counts & { byPlace?: Record<string, Counts> };
 
 type Dir = "asc" | "desc";
@@ -124,72 +128,106 @@ const MSG_SORTS: Option<MsgSort>[] = [{ value: "date", label: "Date" }, { value:
 const MSG_STATUSES: Option<MsgStatus>[] = [{ value: "all", label: "All" }, { value: "hidden", label: "Hidden" }, { value: "shown", label: "Shown" }];
 const MSG_DIR_LABELS: Record<MsgSort, [string, string]> = { date: ["Oldest first", "Newest first"], name: ["A → Z", "Z → A"], status: ["Hidden first", "Shown first"] };
 
+const PAGE = 30; // wishes fetched per request
+const estimateRow = () => 140;
+
 function Messages({ deleteOn }: { deleteOn: boolean }) {
-  const [items, setItems] = useState<Msg[] | null>(null);
-  const [error, setError] = useState("");
-  const [counts, setCounts] = useState({ all: 0, shown: 0, hidden: 0 });
+  // Infinite scroll with virtualization: `total` rows exist, only the ones near the viewport are rendered, and
+  // the pages (PAGE rows each) under them are fetched on demand (usePagedRows).
+  const [error, setError] = useState(""); // a hide/show/delete that failed
   const [toDelete, setToDelete] = useState<Msg | null>(null);
   const [sort, setSort] = useState<MsgSort>("date");
   const [dir, setDir] = useState<Dir>("desc"); // newest first
   const [status, setStatus] = useState<MsgStatus>("all");
-  const latest = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null); // the list scrolls inside this box; the rest of the page stays put
 
-  const load = useCallback(async () => {
-    const mine = ++latest.current;
-    const r = await api<{ messages: Msg[]; counts: typeof counts }>(`/api/admin/messages?${new URLSearchParams({ sort, dir, status })}`);
-    if (mine !== latest.current) return; // a newer request (another sort or filter) owns the list now
-    if (r.ok) { setItems(r.data.messages); setCounts(r.data.counts); setError(""); } else setError("Could not load wishes.");
+  const fetchPage = useCallback(async (offset: number, limit: number): Promise<ApiResult<Page<Msg, MsgCounts>>> => {
+    const r = await api<{ messages: Msg[]; total: number; counts: MsgCounts }>(`/api/admin/messages?${new URLSearchParams({ sort, dir, status, offset: String(offset), limit: String(limit) })}`);
+    return r.ok ? { ok: true, data: { items: r.data.messages, total: r.data.total, meta: r.data.counts } } : r;
   }, [sort, dir, status]);
-  useEffect(() => { load(); }, [load]);
+  const { rows, total, meta: counts, failed, reload, ensure } = usePagedRows(fetchPage, PAGE);
+  useEffect(() => { scrollRef.current?.scrollTo(0, 0); }, [fetchPage]); // new sort or filter: back to the top
+
+  // Stable functions: a new one on every render makes the virtualizer rebuild all its measurements each scroll frame.
+  const getItemKey = useCallback((i: number) => rows.get(i)?.id ?? `row-${i}`, [rows]); // a wish keeps its measured height when the list reorders
+  const v = useVirtualizer({
+    getScrollElement: () => scrollRef.current,
+    count: total ?? 0,
+    estimateSize: estimateRow,
+    overscan: 6,
+    paddingStart: 12, // breathing room above the first card; the last row's own pb-3 is the room below the last
+    getItemKey,
+  });
+  const items = v.getVirtualItems();
+  const slotOf = useRowSlots(items.map((it) => it.index));
+  const firstIdx = items[0]?.index ?? 0;
+  const lastIdx = items[items.length - 1]?.index ?? -1;
+  useEffect(() => ensure(firstIdx, lastIdx), [ensure, firstIdx, lastIdx]);
+  const shownError = error || (failed ? "Could not load wishes." : "");
 
   const toggle = async (m: Msg) => {
     setError("");
     const r = await api(`/api/admin/messages/${m.id}`, { method: "PATCH", body: JSON.stringify({ enabled: !m.enabled }) });
-    if (r.ok) await load(); // reload: the filter, the order and the counts all depend on the status
+    if (r.ok) await reload(); // the filter, the order and the counts all depend on the status
     else setError("Could not update. Try again.");
   };
 
   const remove = async () => {
     if (!toDelete) return;
     const r = await api(`/api/admin/messages/${toDelete.id}`, { method: "DELETE" });
-    // 404 means it is already gone, so drop it from the list as well
-    if (r.ok || r.status === 404) await load();
+    // 404 means it is already gone, so reload drops it from the list as well
+    if (r.ok || r.status === 404) await reload();
     else setError("Could not delete. Try again.");
     setToDelete(null);
   };
 
-  if (!items) return <p className="mt-4">{error || "Loading…"}</p>;
+  if (!counts) return <p className="mt-4">{shownError || "Loading…"}</p>;
   return (
     <section className="mt-4 flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between">
-        <p className="text-sm">{counts.all} wishes, {counts.hidden} hidden</p>
-        <button type="button" className="btn btn-ghost" onClick={load}>Refresh</button>
+        <p className="text-sm">{counts.all} wishes, {counts.hidden} hidden{status !== "all" && total !== null && ` · ${total} shown below`}</p>
+        <button type="button" className="btn btn-ghost" onClick={reload}>Refresh</button>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <SortSelect label="Sorting" value={sort} options={MSG_SORTS} onChange={setSort} />
         <DirButton dir={dir} labels={MSG_DIR_LABELS[sort]} onToggle={() => setDir((d) => (d === "asc" ? "desc" : "asc"))} />
         <SortSelect label="Status" value={status} options={MSG_STATUSES} onChange={setStatus} />
       </div>
-      {error && <p role="alert" className="mt-2 font-semibold text-wine">{error}</p>}
-      {items.length === 0 && <p className="mt-4 opacity-75">{counts.all === 0 ? "No wishes yet." : "No wishes match this filter."}</p>}
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto py-3">
-      <ul className="space-y-3">
-        {items.map((m) => (
-          <li key={m.id} className={`card-surface p-4 ${m.enabled ? "" : "opacity-60"}`}>
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold break-words">{m.name}</p>
-                <p className="text-xs opacity-70">{when(m.createdAt)}</p>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => toggle(m)}>{m.enabled ? "Hide" : "Show"}</button>
-                {deleteOn && <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => setToDelete(m)}>Delete</button>}
-              </div>
-            </div>
-            <p className="mt-2 break-words whitespace-pre-wrap">{m.message}</p>
-            {!m.enabled && <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-red-600">Hidden from the public page</p>}
-          </li>
-        ))}
+      {shownError && <p role="alert" className="mt-2 font-semibold text-wine">{shownError}</p>}
+      {total === 0 && <p className="mt-4 opacity-75">{counts.all === 0 ? "No wishes yet." : "No wishes match this filter."}</p>}
+      <div ref={scrollRef} className="mt-3 min-h-0 flex-1 overflow-y-auto">
+      <ul className="relative" style={{ height: v.getTotalSize() }}>
+        {items.map((it) => {
+          const m = rows.get(it.index);
+          return (
+            <li
+              key={slotOf(it.index)} data-index={it.index}
+              ref={(el) => v.measureElement(el)} // new function each render on purpose: a recycled element must be re-measured for its new row
+              aria-setsize={total ?? 0} aria-posinset={it.index + 1}
+              className="absolute top-0 left-0 w-full pb-3"
+              style={{ transform: `translateY(${it.start}px)` }}
+            >
+              {m ? (
+                <div className={`card-surface p-4 ${m.enabled ? "" : "opacity-60"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold break-words">{m.name}</p>
+                      <p className="text-xs opacity-70">{when(m.createdAt)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => toggle(m)}>{m.enabled ? "Hide" : "Show"}</button>
+                      {deleteOn && <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => setToDelete(m)}>Delete</button>}
+                    </div>
+                  </div>
+                  <p className="mt-2 break-words whitespace-pre-wrap">{m.message}</p>
+                  {!m.enabled && <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-red-600">Hidden from the public page</p>}
+                </div>
+              ) : (
+                <div className="card-surface p-4" aria-busy="true"><p className="text-sm opacity-60">Loading…</p></div>
+              )}
+            </li>
+          );
+        })}
       </ul>
       </div>
       {toDelete && <ConfirmDelete what={`Wish from ${toDelete.name}: “${toDelete.message.length > 120 ? toDelete.message.slice(0, 120) + "…" : toDelete.message}”`} onConfirm={remove} onCancel={() => setToDelete(null)} />}
