@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Invitation } from "@/components/Invitation";
 import { placeBySlug, places } from "@/content/places";
-import { vi } from "@/content/vi";
 import { pagePath } from "@/lib/routes";
 
 type Props = { params: Promise<{ place: string }> };
@@ -18,5 +17,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const place = placeBySlug((await params).place);
   if (!place) notFound();
-  return <Invitation t={vi} place={place} />;
+  return <Invitation initialLang="vi" place={place} />;
 }
