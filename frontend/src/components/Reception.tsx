@@ -37,7 +37,15 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
         <DateLine t={t} iso={place.receptionIso} />
         <div className="px-2 text-center text-[15px] uppercase tracking-wide md:text-[20px]">({place.lunar[t.lang]})</div>
         <div className="mx-auto mt-6 w-[296px] max-w-full md:w-[560px]">
-          <div className="w-full overflow-hidden rounded-lg border" style={{ borderColor: LINE }}>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={t.reception.addToCalendar}
+            onClick={addToCalendar}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addToCalendar(); } }}
+            className="w-full cursor-pointer overflow-hidden rounded-lg border transition-opacity active:opacity-80"
+            style={{ borderColor: LINE }}
+          >
             <div className="border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
               {t.monthsLong[p.m - 1]} / {p.y}
             </div>
@@ -52,10 +60,10 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
                   {week.map((d, i) => (
                     <div key={i} className="flex h-[28px] items-center justify-center md:h-[50px]">
                       {d === p.d ? (
-                        <button type="button" onClick={addToCalendar} aria-label={t.reception.addToCalendar} className="relative flex h-[24px] w-[26px] cursor-pointer items-center justify-center transition-transform active:scale-95 md:h-[44px] md:w-[48px]">
+                        <div className="relative flex h-[24px] w-[26px] items-center justify-center md:h-[44px] md:w-[48px]">
                           <svg viewBox="2 3 20 18.5" className="absolute inset-0 h-full w-full translate-y-[2px] fill-rose drop-shadow-sm" aria-hidden><path d={HEART} /></svg>
                           <span className="relative z-10 text-[11px] font-bold text-white md:text-[19px]">{d}</span>
-                        </button>
+                        </div>
                       ) : d ? (
                         <span className="text-[12px] md:text-[21px]">{d}</span>
                       ) : null}
