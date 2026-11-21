@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { Copy } from "@/content/types";
 import { api } from "@/lib/api";
+import { useGuestName } from "@/lib/useGuestName";
 import { useCaptcha } from "./Turnstile";
 import { errorText } from "./WishForm";
 
 export function RsvpDialog({ t, place, onClose }: { t: Copy; place: string; onClose: () => void }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useGuestName();
   const [side, setSide] = useState<"" | "groom" | "bride">("");
   const [attending, setAttending] = useState<boolean | null>(null);
   const [guests, setGuests] = useState(1);
