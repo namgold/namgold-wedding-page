@@ -121,7 +121,6 @@ export function Album({ t }: { t: Copy }) {
                   <img
                     src={src}
                     alt={`${t.album.alt} ${i + 1}`}
-                    loading="lazy"
                     className="h-full w-full object-cover"
                     onLoad={(e) => {
                       const im = e.currentTarget;

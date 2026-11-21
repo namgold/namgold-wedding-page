@@ -51,30 +51,31 @@ export function Invitation({ initialLang, place }: { initialLang: Lang; place: P
     <>
       {wedding.musicSrc && <audio ref={audio} src={wedding.musicSrc} loop preload="none" />}
       <LangToggle t={t} href={toggleHref} onSwitch={switchLang} />
-      {!opened ? (
-        <Cover t={t} place={place} onOpen={open} onDone={done} />
-      ) : (
-        <>
-          <Music t={t} audioRef={audio} />
-          <Page>
-            <main>
-              <Hero t={t} />
-              <PageFloral />
-              <Families t={t} />
-              <Announcement t={t} place={place} />
-              <Album t={t} />
-              <Reception t={t} place={place} />
-              <Venue t={t} place={place} />
-              <Schedule t={t} place={place} />
-              <Guestbook t={t} />
-              <GiftBox t={t} />
-              <footer className="relative z-10 flex flex-col items-center px-6 pb-12 text-center md:px-10 md:pb-14">
-                <span className="mx-auto flex flex-col items-center gap-1 whitespace-pre-line text-base md:max-w-[560px] md:text-lg">{t.footer}</span>
-              </footer>
-            </main>
-          </Page>
-        </>
-      )}
+      {!opened && <Cover t={t} place={place} onOpen={open} onDone={done} />}
+      {opened && <Music t={t} audioRef={audio} />}
+      {/* The page is always rendered so its images, fonts and guestbook load while the cover is up. Until opened it is
+          inert (no focus, hidden from screen readers) and clipped to the viewport (nothing scrolls behind the cover).
+          Do not use display:none here: FitText and the guestbook virtualizer need real layout, and fonts and lazy
+          images would not load. */}
+      <div inert={!opened} className={opened ? undefined : "h-dvh overflow-hidden"}>
+        <Page>
+          <main>
+            <Hero t={t} />
+            <PageFloral />
+            <Families t={t} />
+            <Announcement t={t} place={place} />
+            <Album t={t} />
+            <Reception t={t} place={place} />
+            <Venue t={t} place={place} />
+            <Schedule t={t} place={place} />
+            <Guestbook t={t} />
+            <GiftBox t={t} />
+            <footer className="relative z-10 flex flex-col items-center px-6 pb-12 text-center md:px-10 md:pb-14">
+              <span className="mx-auto flex flex-col items-center gap-1 whitespace-pre-line text-base md:max-w-[560px] md:text-lg">{t.footer}</span>
+            </footer>
+          </main>
+        </Page>
+      </div>
     </>
   );
 }

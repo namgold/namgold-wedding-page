@@ -71,7 +71,7 @@ export function GiftBox({ t }: { t: Copy }) {
             <span aria-hidden className="igb-shadow pointer-events-none absolute" style={{ left: "50%", bottom: -8, width: 144, height: 12, marginLeft: -72, borderRadius: "50%", backgroundColor: "rgba(0,0,0,.45)", filter: "blur(4px)" }} />
             {DECOR.filter((d) => d.z === 1).map((d) => <Decor key={d.f} d={d} />)}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/giftbox/box.webp" alt="" className="igb-box pointer-events-none absolute" loading="lazy" style={{ left: "50%", bottom: 0, width: 170, maxHeight: 220, objectFit: "contain", marginLeft: -85, zIndex: 2, filter: "drop-shadow(0 10px 18px rgba(0,0,0,.25))" }} />
+            <img src="/images/giftbox/box.webp" alt="" className="igb-box pointer-events-none absolute" style={{ left: "50%", bottom: 0, width: 170, maxHeight: 220, objectFit: "contain", marginLeft: -85, zIndex: 2, filter: "drop-shadow(0 10px 18px rgba(0,0,0,.25))" }} />
             {DECOR.filter((d) => d.z === 3).map((d) => <Decor key={d.f} d={d} />)}
           </span>
         </span>
@@ -120,7 +120,6 @@ function Decor({ d }: { d: (typeof DECOR)[number] }) {
     <img
       src={`/images/giftbox/${d.f}.webp`}
       alt=""
-      loading="lazy"
       className="igb-decor pointer-events-none absolute"
       style={{
         left: d.left, top: d.top, width: d.w, zIndex: d.z, transform: `rotate(${d.rot}deg)`,
