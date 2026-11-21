@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -64,17 +65,50 @@ func (n *Notifier) VerifyTurnstile(ctx context.Context, token, ip string) bool {
 	return out.Success
 }
 
-// Telegram sends a plain-text notification in the background. Best effort: any
-// failure is logged (without the URL, which contains the bot token) and ignored.
-func (n *Notifier) Telegram(text string) {
-	if n.cfg.TelegramToken == "" || n.cfg.TelegramChatID == "" {
+// placeNames labels the known place slugs in notifications only. The page served at
+// "/" is the "wedding" one. The API accepts any slug shape, so an unknown slug is
+// shown as is.
+var placeNames = map[string]string{
+	"ceremony":   "Tân Hội, Lâm Đồng",
+	"invitation": "Nha Trang",
+	"wedding":    "Hồ Chí Minh",
+}
+
+func wishText(name, msg string) string {
+	return "💌 Lời chúc mới\nTên: " + name + "\nLời chúc: " + msg
+}
+
+func rsvpText(rv RSVP) string {
+	place := rv.Place
+	if place == "" {
+		place = "không rõ"
+	} else if label, ok := placeNames[place]; ok {
+		place = label
+	}
+	attending := "Không thể tham dự"
+	if rv.Attending {
+		attending = fmt.Sprintf("Có, %d người", rv.Guests)
+	}
+	side := map[string]string{"bride": "Nhà gái", "groom": "Nhà trai"}[rv.Side]
+	if side == "" {
+		side = rv.Side
+	}
+	return "📝 RSVP mới\nTên: " + rv.Name + "\nBên: " + side + "\nĐịa điểm: " + place + "\nTham dự: " + attending
+}
+
+// Telegram sends a plain-text notification as the bot with the given token to the
+// given chat, in the background. Best effort: any failure is logged (without the
+// URL, which contains the bot token) and ignored. An empty token or chat id turns
+// it off.
+func (n *Notifier) Telegram(token, chatID, text string) {
+	if token == "" || chatID == "" {
 		return
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		form := url.Values{"chat_id": {n.cfg.TelegramChatID}, "text": {text}, "disable_web_page_preview": {"true"}}
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, n.telegramBase+"/bot"+n.cfg.TelegramToken+"/sendMessage", strings.NewReader(form.Encode()))
+		form := url.Values{"chat_id": {chatID}, "text": {text}, "disable_web_page_preview": {"true"}}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, n.telegramBase+"/bot"+token+"/sendMessage", strings.NewReader(form.Encode()))
 		if err != nil {
 			return
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -162,7 +161,7 @@ func (s *Server) postMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("message_created", "id", id) // never log names or message text
-	s.notify.Telegram(fmt.Sprintf("💌 New wish from %s:\n%s", name, msg))
+	s.notify.Telegram(s.cfg.TelegramWishToken, s.cfg.TelegramWishChatID, wishText(name, msg))
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
@@ -232,11 +231,7 @@ func (s *Server) postRSVP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("rsvp_created", "id", id, "place", rv.Place, "attending", rv.Attending, "guests", rv.Guests)
-	status := "can't come"
-	if rv.Attending {
-		status = fmt.Sprintf("coming, %d guest(s)", rv.Guests)
-	}
-	s.notify.Telegram(fmt.Sprintf("📝 RSVP from %s (%s side, %s): %s", rv.Name, rv.Side, rv.Place, status))
+	s.notify.Telegram(s.cfg.TelegramRSVPToken, s.cfg.TelegramRSVPChatID, rsvpText(rv))
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 

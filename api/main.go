@@ -29,8 +29,11 @@ func main() {
 	if !s.access.Configured() {
 		slog.Warn("admin_disabled", "note", "set CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD")
 	}
-	if cfg.TelegramToken == "" || cfg.TelegramChatID == "" {
-		slog.Info("telegram_disabled")
+	if cfg.TelegramWishToken == "" || cfg.TelegramWishChatID == "" {
+		slog.Info("telegram_wish_disabled")
+	}
+	if cfg.TelegramRSVPToken == "" || cfg.TelegramRSVPChatID == "" {
+		slog.Info("telegram_rsvp_disabled")
 	}
 
 	srv := &http.Server{

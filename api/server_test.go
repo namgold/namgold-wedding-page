@@ -460,3 +460,65 @@ INSERT INTO rsvps(name,side,attending,guests,created_at) VALUES('Old','groom',1,
 		st.Close()
 	}
 }
+
+func TestTelegramText(t *testing.T) {
+	if got, want := wishText("An", "Chúc mừng"), "💌 Lời chúc mới\nTên: An\nLời chúc: Chúc mừng"; got != want {
+		t.Errorf("wish: %q", got)
+	}
+	got := rsvpText(RSVP{Name: "An", Side: "bride", Place: "ceremony", Attending: true, Guests: 3})
+	if want := "📝 RSVP mới\nTên: An\nBên: Nhà gái\nĐịa điểm: Tân Hội, Lâm Đồng\nTham dự: Có, 3 người"; got != want {
+		t.Errorf("rsvp: %q", got)
+	}
+	got = rsvpText(RSVP{Name: "B", Side: "groom", Place: "invitation"})
+	if want := "📝 RSVP mới\nTên: B\nBên: Nhà trai\nĐịa điểm: Nha Trang\nTham dự: Không thể tham dự"; got != want {
+		t.Errorf("rsvp no: %q", got)
+	}
+	if got := rsvpText(RSVP{Name: "D", Side: "bride", Place: "wedding", Attending: true, Guests: 2}); !strings.Contains(got, "Địa điểm: Hồ Chí Minh\n") {
+		t.Errorf("wedding: %q", got)
+	}
+	if got := rsvpText(RSVP{Name: "C", Side: "bride", Place: "other-x", Attending: true, Guests: 1}); !strings.Contains(got, "Địa điểm: other-x\n") {
+		t.Errorf("unknown slug: %q", got)
+	}
+}
+
+func TestTelegramUsesOneBotPerKind(t *testing.T) {
+	type call struct{ path, chat string }
+	calls := make(chan call, 4)
+	tg := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		calls <- call{r.URL.Path, r.Form.Get("chat_id")}
+	}))
+	defer tg.Close()
+	e := newEnv(t, func(c *Config) {
+		c.TelegramWishToken, c.TelegramWishChatID = "wish", "-1"
+		c.TelegramRSVPToken, c.TelegramRSVPChatID = "rsvp", "-2"
+	})
+	e.srv.notify.telegramBase = tg.URL
+	e.do("POST", "/api/messages", `{"name":"A","message":"x"}`, nil)
+	e.do("POST", "/api/rsvp", `{"name":"A","side":"bride","attending":true,"guests":1}`, nil)
+	got := map[string]string{}
+	for i := 0; i < 2; i++ {
+		select {
+		case c := <-calls:
+			got[c.path] = c.chat
+		case <-time.After(2 * time.Second):
+			t.Fatalf("only %d telegram calls: %v", i, got)
+		}
+	}
+	want := map[string]string{"/botwish/sendMessage": "-1", "/botrsvp/sendMessage": "-2"}
+	for p, chat := range want {
+		if got[p] != chat {
+			t.Errorf("%s: chat %q, want %q (calls %v)", p, got[p], chat, got)
+		}
+	}
+
+	// A kind without its own token sends nothing.
+	e2 := newEnv(t, func(c *Config) { c.TelegramRSVPToken, c.TelegramRSVPChatID = "rsvp", "-2" })
+	e2.srv.notify.telegramBase = tg.URL
+	e2.do("POST", "/api/messages", `{"name":"A","message":"x"}`, nil)
+	select {
+	case c := <-calls:
+		t.Errorf("wish sent without a wish token: %v", c)
+	case <-time.After(300 * time.Millisecond):
+	}
+}
