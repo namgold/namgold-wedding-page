@@ -81,6 +81,8 @@ export const vi: Copy = {
     groom: "Chú rể",
     bride: "Cô dâu",
     qrNote: "Quét mã QR để gửi mừng cưới",
+    copy: "Sao chép số tài khoản",
+    copied: "Đã sao chép",
   },
   footer: "Sự hiện diện của quý khách là niềm vinh hạnh của gia đình chúng tôi!",
   music: { on: "Bật nhạc", off: "Tắt nhạc" },

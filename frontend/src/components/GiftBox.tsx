@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { wedding } from "@/content/data";
 import type { Copy } from "@/content/types";
 
@@ -102,7 +102,7 @@ export function GiftBox({ t }: { t: Copy }) {
                         <img src={g.icon} alt="" width={20} height={20} className="h-5 w-5" />
                         {g.bank}
                       </p>
-                      <p className="font-mono text-sm">{g.number}</p>
+                      <CopyNumber number={g.number} t={t} />
                       <p className="text-sm font-semibold">{g.holder}</p>
                     </div>
                   </div>
@@ -129,5 +129,51 @@ function Decor({ d }: { d: (typeof DECOR)[number] }) {
         "--fx": `${d.fx}px`, "--t": `${d.t}s`, "--d": `${d.d}s`,
       } as React.CSSProperties}
     />
+  );
+}
+
+// One tappable line (icon + number): copies the number. Pressed and just-copied states give feedback; the icon becomes a check for 2 s.
+function CopyNumber({ number, t }: { number: string; t: Copy }) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(number);
+    } catch {
+      // No Clipboard API (some in-app browsers, non-secure pages): select a hidden field and use the old command.
+      const el = document.createElement("textarea");
+      el.value = number;
+      el.setAttribute("readonly", "");
+      el.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(el);
+      el.select();
+      try {
+        document.execCommand("copy");
+      } finally {
+        el.remove();
+      }
+    }
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={`${t.gift.copy}: ${number}`}
+      className={`mx-auto flex cursor-pointer select-none items-center gap-2 rounded-lg border-none px-3 py-1.5 font-mono text-sm transition duration-150 active:scale-95 active:bg-rose/25 ${copied ? "bg-rose/15" : "bg-transparent hover:bg-rose/10"}`}
+    >
+      {copied ? (
+        <svg className="h-4 w-4 shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+      ) : (
+        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden><rect x="9" y="9" width="11" height="11" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M5 15V6a2 2 0 012-2h9" /></svg>
+      )}
+      {number}
+      <span role="status" className="sr-only">{copied ? t.gift.copied : ""}</span>
+    </button>
   );
 }

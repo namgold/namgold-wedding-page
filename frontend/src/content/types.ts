@@ -75,6 +75,8 @@ export type Copy = {
     groom: string;
     bride: string;
     qrNote: string;
+    copy: string; // aria-label of the copy-number button
+    copied: string; // announced to screen readers after copying
   };
   footer: string;
   music: { on: string; off: string };

@@ -22,7 +22,7 @@ Temporarily off (owner, 2026-11-21): too slow and token-heavy for simple tasks. 
 - `cloudflared` — its own tunnel (token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN`) routing linhhy.namgold.com → `http://frontend:80`
 - No host port published; the tunnel reaches nginx over the compose network.
 - Design: since 2026-11-16 the owner asked for the frontend to match the original boho-floral-pink template saved in `temp/origin/index.html` (palette `#9D6D63`/`#FFFAF7`, Times/Baskerville body, Playfair/EB Garamond/Ms Madi names, px-offset floral art with scroll parallax via `--s` in `components/Floral.tsx`). Floral art in `public/images/floral` and `public/images/giftbox` is the template vendor's: check licensing before the site is promoted. Do not copy its code or sample text.
-- Two different QRs: the **site QR** (invitation, opens a place's URL, 3 variations) and the **bank QR** (`components/Qr.tsx`, gift box, optional with an on/off switch). The bank QR is hidden by `wedding.showBankQr = false` in `data.ts` (the QR image is still a fake placeholder). The 3G performance budget is not set yet.
+- Two different QRs: the **site QR** (invitation, opens a place's URL, 3 variations) and the **bank QR** (gift box, optional with an on/off switch). The bank QR is shown since 2026-11-22 (`wedding.showBankQr = true` in `data.ts`): the images are the owners' real VietQR codes, cropped from their banking-app screenshots, in `public/images/gift/qr-{groom.png,bride.webp}` and referenced by `gifts[].qr`. The bride's is MoMo, not Vietcombank. They decode to the same payload as the originals (checked with OpenCV). The 3G performance budget is not set yet.
 
 ## Running
 ```

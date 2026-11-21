@@ -81,6 +81,8 @@ export const en: Copy = {
     groom: "Groom",
     bride: "Bride",
     qrNote: "Scan the QR code to send a wedding gift",
+    copy: "Copy account number",
+    copied: "Copied",
   },
   footer: "Your presence is an honor to our families!",
   music: { on: "Play music", off: "Mute music" },
