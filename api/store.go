@@ -146,23 +146,28 @@ func (s *Store) AddMessage(name, msg string) (int64, error) {
 	return r.LastInsertId()
 }
 
-// PublicMessages returns only enabled messages (filtered in SQL, never client-side),
-// newest first. before=0 means from the newest. It returns up to limit rows and
-// whether more exist.
-func (s *Store) PublicMessages(before int64, limit int) ([]Message, bool, error) {
+// PublicMessages returns only enabled messages (filtered in SQL, never client-side), newest first. It
+// returns up to limit rows, whether more exist, and the total number of enabled messages. Page either by
+// cursor (before = id of the oldest row seen; 0 = from the newest) or by position (offset); the guestbook
+// list uses offset so it can size its scrollbar from total and jump to any position.
+func (s *Store) PublicMessages(before int64, offset, limit int) ([]Message, bool, int, error) {
 	if before <= 0 {
 		before = 1<<62 - 1
 	}
-	rows, err := s.db.Query(`SELECT id,name,message,created_at FROM messages WHERE enabled=1 AND id<? ORDER BY id DESC LIMIT ?`, before, limit+1)
+	var total int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM messages WHERE enabled=1`).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
+	rows, err := s.db.Query(`SELECT id,name,message,created_at FROM messages WHERE enabled=1 AND id<? ORDER BY id DESC LIMIT ? OFFSET ?`, before, limit+1, offset)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	defer rows.Close()
 	out := []Message{}
 	for rows.Next() {
 		var m Message
 		if err := rows.Scan(&m.ID, &m.Name, &m.Message, &m.CreatedAt); err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 		out = append(out, m)
 	}
@@ -170,7 +175,7 @@ func (s *Store) PublicMessages(before int64, limit int) ([]Message, bool, error)
 	if more {
 		out = out[:limit]
 	}
-	return out, more, rows.Err()
+	return out, more, total, rows.Err()
 }
 
 // MessageQuery is the admin wishes list query. Sort is "date", "name" or "status"; Dir is "asc" or "desc";

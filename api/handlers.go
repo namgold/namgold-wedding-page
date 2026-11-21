@@ -107,13 +107,17 @@ func (s *Server) listMessages(w http.ResponseWriter, r *http.Request) {
 		limit = 50
 	}
 	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
-	msgs, more, err := s.store.PublicMessages(before, limit)
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if offset < 0 {
+		offset = 0
+	}
+	msgs, more, total, err := s.store.PublicMessages(before, offset, limit)
 	if err != nil {
 		slog.Error("db_error", "op", "list_messages", "err", err)
 		fail(w, 500, "server")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"messages": msgs, "hasMore": more})
+	writeJSON(w, 200, map[string]any{"messages": msgs, "hasMore": more, "total": total})
 }
 
 type messageIn struct {

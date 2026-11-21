@@ -623,3 +623,45 @@ func TestAdminRSVPSort(t *testing.T) {
 		}
 	}
 }
+
+func TestPublicMessagesTotalAndOffset(t *testing.T) {
+	e := newEnv(t, nil)
+	st := e.srv.store
+	for i := 1; i <= 7; i++ {
+		st.AddMessage(fmt.Sprintf("G%d", i), "hi") // ids 1..7
+	}
+	st.SetEnabled(3, false) // hidden: must count nowhere
+	get := func(query string) (names string, more bool, total int) {
+		t.Helper()
+		var out struct {
+			Messages []Message
+			HasMore  bool
+			Total    int
+		}
+		w := e.do("GET", "/api/messages"+query, "", nil)
+		if w.Code != 200 {
+			t.Fatalf("%s: %d", query, w.Code)
+		}
+		json.Unmarshal(w.Body.Bytes(), &out)
+		var n []string
+		for _, m := range out.Messages {
+			n = append(n, m.Name)
+		}
+		return strings.Join(n, ","), out.HasMore, out.Total
+	}
+	for q, want := range map[string]string{
+		"":                           "G7,G6,G5,G4,G2,G1|false|6",
+		"?limit=2":                   "G7,G6|true|6",
+		"?limit=2&offset=2":          "G5,G4|true|6",
+		"?limit=2&offset=4":          "G2,G1|false|6", // offset counts enabled rows only
+		"?limit=2&offset=40":         "|false|6",
+		"?limit=2&offset=-5":         "G7,G6|true|6", // bad offset = 0
+		"?limit=2&before=5":          "G4,G2|true|6", // the cursor still works
+		"?limit=2&before=5&offset=1": "G2,G1|false|6",
+	} {
+		n, more, total := get(q)
+		if got := fmt.Sprintf("%s|%v|%d", n, more, total); got != want {
+			t.Errorf("%q: got %s, want %s", q, got, want)
+		}
+	}
+}
