@@ -49,7 +49,7 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
             onTouchCancel={() => setPressed(false)}
             data-pressed={pressed || undefined}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addToCalendar(); } }}
-            className="w-full cursor-pointer select-none overflow-hidden [-webkit-touch-callout:none] rounded-lg border transition-[translate,box-shadow] duration-200 hover:-translate-x-[3px] hover:-translate-y-[3px] hover:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] data-pressed:-translate-x-[3px] data-pressed:-translate-y-[3px] data-pressed:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] motion-reduce:transition-none"
+            className="w-full cursor-pointer select-none overflow-hidden bg-blush/90 [-webkit-touch-callout:none] rounded-lg border transition-[translate,box-shadow] duration-200 hover:-translate-x-[3px] hover:-translate-y-[3px] hover:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] data-pressed:-translate-x-[3px] data-pressed:-translate-y-[3px] data-pressed:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] motion-reduce:transition-none"
             style={{ borderColor: LINE }}
           >
             <div className="relative border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
