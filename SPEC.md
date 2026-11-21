@@ -58,6 +58,7 @@ Each `Place` has: `slug`, `ceremonyIso?`, `ceremonyName?`, `receptionIso`, `rece
 - **Wishes** controls: *Sorting* (select: Date, Name, Status), *Direction* (button showing its state, e.g. "Newest first"), *Status* (select: All, Hidden, Shown). Default: Date, newest first. The text "Hidden from the public page" is red.
 - The Wishes list is infinite scroll with virtualization: only rows near the viewport are in the DOM, the scroll bar is full length from the start (the API returns `total`), 30 rows load at a time. Hide / Show / Delete refetch the loaded pages in place (scroll position kept).
 - **RSVPs**: *Sorting* (Date, Name) and *Direction*, default newest first. Not virtualized. The four stat cards, Refresh / Download CSV and the controls stay fixed.
+- While data loads the page shows skeleton cards (one bar per text line, same height as a real card), never "Loading…" text: while signing in, on the first Wishes and RSVPs load, and for Wishes rows whose page has not arrived.
 - Buttons, selects and switches show the pointer cursor (Tailwind v4 preflight no longer sets it).
 - Wishes API: `GET /api/admin/messages?sort=date|name|status&dir=asc|desc&status=all|hidden|shown&offset&limit` returns `{messages,total,counts}`; RSVPs API: `?sort=date|name&dir`. See `CLAUDE.md` and `DECISIONS.md` "Changes 2026-11-22".
 

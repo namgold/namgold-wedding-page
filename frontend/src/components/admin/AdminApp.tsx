@@ -39,6 +39,46 @@ function DirButton({ dir, labels, onToggle }: { dir: Dir; labels: [string, strin
   );
 }
 
+/* Skeletons: one bar per text line, each in a line box of the real line height, so a card is the height of the real one
+   and fills in place. */
+const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
+const Line = ({ h, line, w, cls = "" }: { h: string; line: string; w: string; cls?: string }) => (
+  <span className={`flex ${line} items-center ${cls}`}><span className={`${bar} ${h} ${w}`} /></span>
+);
+
+/** Same height as a one-line wish: name + date, the Hide button, one message line. */
+function WishSkeleton() {
+  return (
+    <div className="card-surface p-4" aria-busy="true">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <Line line="h-6" h="h-4" w="w-32" />
+          <Line line="h-4" h="h-3" w="w-40" />
+        </div>
+        <span className={`${bar} h-[34px] w-16 !rounded-[10px]`} />
+      </div>
+      <Line line="h-6" h="h-4" w="w-3/4" cls="mt-2" />
+    </div>
+  );
+}
+
+/** Same height as an RSVP card with no diet or message: name + date, one status line. */
+function RsvpSkeleton() {
+  return (
+    <div className="card-surface p-4" aria-busy="true">
+      <div className="flex items-baseline justify-between gap-2">
+        <Line line="h-6" h="h-4" w="w-44" />
+        <Line line="h-4" h="h-3" w="w-40" />
+      </div>
+      <Line line="h-6" h="h-4" w="w-1/2" cls="mt-1" />
+    </div>
+  );
+}
+
+const SkeletonList = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div role="status" aria-label={label} className="min-h-0 flex-1 space-y-3 overflow-hidden py-3">{children}</div>
+);
+
 const when = (sec: number) => new Date(sec * 1000).toLocaleString();
 
 /** Modal that asks the owner to confirm a permanent delete. Native <dialog>: focus trap and Esc come for free. */
@@ -88,6 +128,13 @@ export function AdminApp() {
       unconfigured: "The admin API is not configured yet. Set CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD in .env and restart the api service.",
       error: "Could not reach the API.",
     }[auth];
+    if (auth === "loading") {
+      return (
+        <main className="mx-auto flex h-dvh max-w-3xl flex-col overflow-hidden p-4 sm:p-6">
+          <SkeletonList label={text}>{Array.from({ length: 6 }, (_, i) => <WishSkeleton key={i} />)}</SkeletonList>
+        </main>
+      );
+    }
     return <main className="mx-auto max-w-xl p-6"><p role="status">{text}</p></main>;
   }
 
@@ -181,7 +228,11 @@ function Messages({ deleteOn }: { deleteOn: boolean }) {
     setToDelete(null);
   };
 
-  if (!counts) return <p className="mt-4">{shownError || "Loading…"}</p>;
+  if (!counts) {
+    return shownError
+      ? <p role="alert" className="mt-4 font-semibold text-wine">{shownError}</p>
+      : <SkeletonList label="Loading wishes">{Array.from({ length: 6 }, (_, i) => <WishSkeleton key={i} />)}</SkeletonList>;
+  }
   return (
     <section className="mt-4 flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between">
@@ -223,7 +274,7 @@ function Messages({ deleteOn }: { deleteOn: boolean }) {
                   {!m.enabled && <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-red-600">Hidden from the public page</p>}
                 </div>
               ) : (
-                <div className="card-surface p-4" aria-busy="true"><p className="text-sm opacity-60">Loading…</p></div>
+                <WishSkeleton />
               )}
             </li>
           );
@@ -263,7 +314,23 @@ function Rsvps({ deleteOn }: { deleteOn: boolean }) {
     setToDelete(null);
   };
 
-  if (!data) return <p className="mt-4">{error || "Loading…"}</p>;
+  if (!data) {
+    return error
+      ? <p role="alert" className="mt-4 font-semibold text-wine">{error}</p>
+      : (
+        <SkeletonList label="Loading RSVPs">
+          <div className="grid grid-cols-4 gap-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="card-surface flex flex-col items-center p-3">
+                <Line line="h-8" h="h-5" w="w-8" />
+                <Line line="h-4" h="h-3" w="w-12" />
+              </div>
+            ))}
+          </div>
+          {Array.from({ length: 5 }, (_, i) => <RsvpSkeleton key={i} />)}
+        </SkeletonList>
+      );
+  }
   const { summary: s, rsvps } = data;
   const stat = (label: string, n: number) => (
     <div className="card-surface p-3 text-center">
