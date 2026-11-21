@@ -11,15 +11,23 @@ import { WishForm } from "./WishForm";
 const PAGE = 20;
 const estimateRow = () => 110;
 
-/** One wish; without `m` a placeholder with the same elements, so a row fills in place when its page arrives. */
-function GuestCard({ m, loading }: { m?: PublicMessage; loading: string }) {
+const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
+
+/**
+ * One wish. Without `m` it is a skeleton: one bar for each of the two lines (name, message), each in a line box of the
+ * real line height (20px for the semibold text-sm name, 22.75px for the leading-relaxed text-sm message), so it is the
+ * size of a one-line wish and a row fills in place when its page arrives.
+ */
+function GuestCard({ m }: { m?: PublicMessage }) {
   return (
     <div className="card-surface !bg-rose/[.02] p-4 text-sm" aria-busy={!m}>
       <div className="flex items-start justify-between gap-3">
-        <span className="break-words font-semibold">{m?.name}</span>
+        <span className="break-words font-semibold">{m ? m.name : <span className="flex h-5 items-center"><span className={`${bar} h-3.5 w-28`} /></span>}</span>
         <span className="shrink-0 text-xs opacity-70">{m && fmtStamp(m.createdAt)}</span>
       </div>
-      <p className={`mt-2 break-words whitespace-pre-wrap leading-relaxed ${m ? "" : "opacity-60"}`}>{m ? m.message : loading}</p>
+      <p className="mt-2 break-words whitespace-pre-wrap leading-relaxed">
+        {m ? m.message : <span className="flex h-[22.75px] items-center"><span className={`${bar} h-3.5 w-3/4`} /></span>}
+      </p>
     </div>
   );
 }
@@ -54,7 +62,11 @@ export function Guestbook({ t }: { t: Copy }) {
       <h2 className="h-title">{t.guestbook.heading}</h2>
       <WishForm t={t} onSent={onSent} />
 
-      {total === null && !failed && <p className="mt-6 text-center text-sm">{t.guestbook.loading}</p>}
+      {total === null && !failed && (
+        <div className="mx-auto mt-8 w-full max-w-full space-y-3 pr-2 md:max-w-[600px]" role="status" aria-label={t.guestbook.loading}>
+          {[0, 1, 2].map((i) => <GuestCard key={i} />)}
+        </div>
+      )}
       {failed && (
         <div className="mt-6 text-center text-sm">
           <p>{t.guestbook.loadError}</p>
@@ -76,7 +88,7 @@ export function Guestbook({ t }: { t: Copy }) {
                   className="absolute top-0 left-0 w-full pb-3"
                   style={{ transform: `translateY(${it.start}px)` }}
                 >
-                  <GuestCard m={m} loading={t.guestbook.loading} />
+                  <GuestCard m={m} />
                 </li>
               );
             })}
