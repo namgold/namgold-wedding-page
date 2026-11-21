@@ -1,7 +1,6 @@
 export type Copy = {
   lang: "vi" | "en";
   htmlLang: string;
-  otherLang: { label: string };
   meta: { title: string; description: string };
   eventTitle: string;
   cover: { invite: string; open: string };
@@ -22,7 +21,6 @@ export type Copy = {
     name: string; // default name of the reception, replaces {reception} in the strings below and in eventTitle
     heading: string;
     startsAt: string;
-    opening: string;
     addToCalendar: string;
     rsvp: string;
     calendarTitle: string;

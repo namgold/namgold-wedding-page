@@ -2,7 +2,7 @@
 import { useEffect, useState, type RefObject } from "react";
 import { wedding } from "@/content/data";
 import type { Copy } from "@/content/types";
-import { restoreVolume, useFocusFade } from "@/lib/focusFade";
+import { fadePause, fadePlay, useFocusFade } from "@/lib/focusFade";
 
 const BARS = [
   { h: "60%", a: "animate-dance-1" },
@@ -28,11 +28,13 @@ export function Music({ t, audioRef }: { t: Copy; audioRef: RefObject<HTMLAudioE
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (a.paused) {
-      restoreVolume(a);
-      a.play().catch(() => setOn(false));
+    if (on) {
+      setOn(false); // the disc stops now; the audio fades out over 1 s, then pauses
+      fadePause(a);
+    } else {
+      setOn(true);
+      fadePlay(a).catch(() => setOn(false));
     }
-    else a.pause();
   };
   return (
     <div className="in-col-right fixed bottom-14 z-40">

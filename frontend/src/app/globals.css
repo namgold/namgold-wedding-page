@@ -27,6 +27,11 @@
 .in-col-left { left: max(1rem, calc(50% - var(--col) / 2 + 1rem)); }
 .in-col-right { right: max(1rem, calc(50% - var(--col) / 2 + 1rem)); }
 
+/* Tailwind v4 preflight no longer sets a pointer cursor on buttons. */
+@layer base {
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]), summary, select { cursor: pointer; }
+}
+
 html { scroll-behavior: smooth; }
 body {
   background: #fff;

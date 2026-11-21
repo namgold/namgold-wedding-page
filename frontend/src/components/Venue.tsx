@@ -19,7 +19,7 @@ export function Venue({ t, place }: { t: Copy; place: Place }) {
         <div className="relative flex w-full flex-col items-center gap-4 md:gap-5">
           <iframe
             title={`${withReception(t.venue.heldAt, t, place)} ${place.venueName}`}
-            className="h-[267px] w-full max-w-[338px] overflow-hidden rounded-[15px] md:h-[380px] md:max-w-[560px]"
+            className="h-[374px] w-full max-w-[473px] overflow-hidden rounded-[15px] md:h-[532px] md:max-w-[784px]"
             src={place.mapEmbedUrl ?? `https://maps.google.com/maps?q=${q}&output=embed`}
             loading="lazy"
             allowFullScreen

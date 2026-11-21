@@ -40,7 +40,7 @@ function Ceremony({ t, place, iso, title }: { t: Copy; place: Place; iso: string
           <span className="whitespace-pre-line text-center text-[16px] font-normal uppercase md:text-[20px]">{`${title} ${t.announce.place}`}</span>
           <p className="mb-2 text-[16px] font-normal uppercase md:text-[18px]">{t.announce.at}</p>
         </div>
-        <div className="text-[20px] md:text-[30px]">{p.hh}:{p.mm}</div>
+        <div className="text-[26px] font-bold md:text-[38px]">{p.hh}:{p.mm}</div>
         <DateLine t={t} iso={iso} />
         <div className="px-2 text-center text-[15px] uppercase tracking-wide md:text-[20px]">({place.lunar[t.lang]})</div>
       </div>

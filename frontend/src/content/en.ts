@@ -4,7 +4,6 @@ import { wedding } from "./data";
 export const en: Copy = {
   lang: "en",
   htmlLang: "en",
-  otherLang: { label: "VI" },
   meta: {
     title: `Wedding invitation | ${wedding.groom} & ${wedding.bride}`,
     description: "You are warmly invited to celebrate our wedding.",
@@ -28,7 +27,6 @@ export const en: Copy = {
     name: "wedding reception",
     heading: "{reception}",
     startsAt: "The {reception} begins at",
-    opening: "Doors open",
     addToCalendar: "Add to calendar",
     rsvp: "RSVP",
     calendarTitle: "Calendar",

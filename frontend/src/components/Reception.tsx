@@ -13,6 +13,8 @@ const HEART = "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c
 export function Reception({ t, place }: { t: Copy; place: Place }) {
   const p = partsOf(place.receptionIso);
   const grid = monthGrid(p.y, p.m);
+  const weeks = Array.from({ length: Math.ceil(grid.length / 7) }, (_, w) => grid.slice(w * 7, w * 7 + 7));
+  const eventWeek = Math.floor(grid.indexOf(p.d) / 7);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const time = `${p.hh}:${p.mm}`;
 
@@ -29,37 +31,34 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
       <h2 className="h-title mb-6 mt-10 px-4 md:mb-8 md:mt-12">{withReception(t.reception.heading, t, place)}</h2>
       <div className="flex flex-col items-center gap-4 px-6 text-center md:gap-5">
         <h3 className="flex flex-col items-center text-[16px] font-normal uppercase md:text-[20px]">{withReception(t.reception.startsAt, t, place)}:</h3>
-        <div className="text-[20px] md:text-[30px]">{time}</div>
+        <div className="text-[26px] font-bold md:text-[38px]">{time}</div>
         <DateLine t={t} iso={place.receptionIso} />
         <div className="px-2 text-center text-[15px] uppercase tracking-wide md:text-[20px]">({place.lunar[t.lang]})</div>
-        <div className="mt-4 flex items-center justify-center gap-8">
-          <div className="flex flex-col items-center">
-            <span className="text-xs uppercase tracking-wider">{t.reception.opening}</span>
-            <span className="mt-1 text-lg font-semibold md:text-xl">{time}</span>
-          </div>
-        </div>
-
-        <div className="mx-auto mt-2 w-[296px] max-w-full md:w-[352px]">
+        <div className="mx-auto mt-6 w-[296px] max-w-full md:w-[560px]">
           <div className="w-full overflow-hidden rounded-lg border" style={{ borderColor: LINE }}>
-            <div className="border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[14px]" style={{ borderColor: LINE }}>
+            <div className="border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
               {t.monthsLong[p.m - 1]} / {p.y}
             </div>
             <div className="grid grid-cols-7 border-b-2 border-rose">
-              {t.weekdaysShort.map((d) => (
-                <div key={d} className="py-1.5 text-center text-[10px] font-medium opacity-60 md:text-[11px]">{d}</div>
+              {t.weekdaysShort.map((d, i) => (
+                <div key={d} className={`py-1.5 text-center text-[10px] md:text-[17px] ${i === p.weekday ? "font-bold" : "font-medium opacity-60"}`}>{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-y-0.5 px-1 py-2">
-              {grid.map((d, i) => (
-                <div key={i} className="flex h-[30px] items-center justify-center md:h-[34px]">
-                  {d === p.d ? (
-                    <div className="relative flex h-[24px] w-[26px] items-center justify-center md:h-[28px] md:w-[30px]">
-                      <svg viewBox="2 3 20 18.5" className="absolute inset-0 h-full w-full fill-rose drop-shadow-sm" aria-hidden><path d={HEART} /></svg>
-                      <span className="relative z-10 text-[11px] font-bold text-white md:text-[12px]">{d}</span>
+            <div className="flex flex-col gap-y-0.5 px-1 py-2">
+              {weeks.map((week, w) => (
+                <div key={w} className={`grid grid-cols-7 rounded-lg border ${w === eventWeek ? "border-rose" : "border-transparent"}`}>
+                  {week.map((d, i) => (
+                    <div key={i} className="flex h-[28px] items-center justify-center md:h-[50px]">
+                      {d === p.d ? (
+                        <div className="relative flex h-[24px] w-[26px] items-center justify-center md:h-[44px] md:w-[48px]">
+                          <svg viewBox="2 3 20 18.5" className="absolute inset-0 h-full w-full translate-y-[2px] fill-rose drop-shadow-sm" aria-hidden><path d={HEART} /></svg>
+                          <span className="relative z-10 text-[11px] font-bold text-white md:text-[19px]">{d}</span>
+                        </div>
+                      ) : d ? (
+                        <span className="text-[12px] md:text-[21px]">{d}</span>
+                      ) : null}
                     </div>
-                  ) : d ? (
-                    <span className="text-[12px] md:text-[13px]">{d}</span>
-                  ) : null}
+                  ))}
                 </div>
               ))}
             </div>

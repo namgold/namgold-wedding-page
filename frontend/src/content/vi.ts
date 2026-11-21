@@ -4,7 +4,6 @@ import { wedding } from "./data";
 export const vi: Copy = {
   lang: "vi",
   htmlLang: "vi",
-  otherLang: { label: "EN" },
   meta: {
     title: `Thiệp cưới | ${wedding.groom} & ${wedding.bride}`,
     description: "Trân trọng kính mời bạn đến dự lễ cưới của chúng tôi.",
@@ -28,7 +27,6 @@ export const vi: Copy = {
     name: "tiệc cưới",
     heading: "Thông tin {reception}",
     startsAt: "{reception} sẽ diễn ra vào lúc",
-    opening: "Khai tiệc",
     addToCalendar: "Thêm vào lịch",
     rsvp: "Xác nhận tham dự",
     calendarTitle: "Lịch",
