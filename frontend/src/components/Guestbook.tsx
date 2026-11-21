@@ -14,9 +14,9 @@ const estimateRow = () => 110;
 const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
 
 /**
- * One wish. Without `m` it is a skeleton: one bar for each of the two lines (name, message), each in a line box of the
- * real line height (20px for the semibold text-sm name, 22.75px for the leading-relaxed text-sm message), so it is the
- * size of a one-line wish and a row fills in place when its page arrives.
+ * One wish. Without `m` it is a skeleton: one bar for each of three lines (the name and two message lines, no block),
+ * each in a line box of the real line height (20px for the semibold text-sm name, 22.75px for the leading-relaxed
+ * text-sm message), so it is the size of a wish with a two-line message and a row fills in place when its page arrives.
  */
 function GuestCard({ m }: { m?: PublicMessage }) {
   return (
@@ -26,7 +26,12 @@ function GuestCard({ m }: { m?: PublicMessage }) {
         <span className="shrink-0 text-xs opacity-70">{m && fmtStamp(m.createdAt)}</span>
       </div>
       <p className="mt-2 break-words whitespace-pre-wrap leading-relaxed">
-        {m ? m.message : <span className="flex h-[22.75px] items-center"><span className={`${bar} h-3.5 w-3/4`} /></span>}
+        {m ? m.message : (
+          <>
+            <span className="flex h-[22.75px] items-center"><span className={`${bar} h-3.5 w-full`} /></span>
+            <span className="flex h-[22.75px] items-center"><span className={`${bar} h-3.5 w-3/4`} /></span>
+          </>
+        )}
       </p>
     </div>
   );
