@@ -9,6 +9,7 @@ import { useRowSlots } from "@/lib/useRowSlots";
 import { WishForm } from "./WishForm";
 
 const PAGE = 20;
+const FADE = 32;
 const estimateRow = () => 110;
 
 const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
@@ -53,6 +54,10 @@ export function Guestbook({ t }: { t: Copy }) {
   const v = useVirtualizer({ getScrollElement: () => scrollRef.current, count: total ?? 0, estimateSize: estimateRow, overscan: 5, getItemKey });
   const items = v.getVirtualItems();
   const slotOf = useRowSlots(items.map((it) => it.index));
+  // The list fades out at an edge that has more wishes beyond it, by up to FADE px as you scroll away from the end.
+  const off = v.scrollOffset ?? 0;
+  const fadeTop = Math.min(off, FADE);
+  const fadeBottom = Math.min(Math.max(v.getTotalSize() - off - (v.scrollRect?.height ?? 0), 0), FADE);
   const firstIdx = items[0]?.index ?? 0;
   const lastIdx = items[items.length - 1]?.index ?? -1;
   useEffect(() => ensure(firstIdx, lastIdx), [ensure, firstIdx, lastIdx]);
@@ -81,7 +86,7 @@ export function Guestbook({ t }: { t: Copy }) {
       {total === 0 && <p className="mt-6 text-center text-sm">{t.guestbook.empty}</p>}
 
       {!!total && (
-        <div ref={scrollRef} className="mx-auto mt-8 max-h-[640px] w-full max-w-full overflow-y-auto pr-2 md:max-w-[600px]">
+        <div ref={scrollRef} className="mx-auto mt-8 max-h-[640px] w-full max-w-full overflow-y-auto pr-2 edge-fade md:max-w-[600px]" style={{ "--fade-top": `${fadeTop}px`, "--fade-bottom": `${fadeBottom}px` } as React.CSSProperties}>
           <ul className="relative w-full" style={{ height: v.getTotalSize() }}>
             {items.map((it) => {
               const m = rows.get(it.index);

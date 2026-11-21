@@ -77,6 +77,13 @@ body:has(.page-frame) { background: var(--color-blush); }
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 
+.edge-fade {
+  /* --fade-top / --fade-bottom: how far (0-32px) the list's edge fades out; 0 when nothing is hidden at that edge. */
+  --mask: linear-gradient(to bottom, transparent, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent);
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+}
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   padding: 0.5rem 1.5rem; border-radius: 10px;
