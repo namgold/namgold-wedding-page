@@ -43,7 +43,7 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
             aria-label={t.reception.addToCalendar}
             onClick={addToCalendar}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addToCalendar(); } }}
-            className="w-full cursor-pointer overflow-hidden rounded-lg border transition-opacity active:opacity-80"
+            className="w-full cursor-pointer overflow-hidden rounded-lg border transition-[translate,box-shadow] duration-200 hover:-translate-x-[3px] hover:-translate-y-[3px] hover:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] active:-translate-x-[3px] active:-translate-y-[3px] active:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] motion-reduce:transition-none"
             style={{ borderColor: LINE }}
           >
             <div className="relative border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
