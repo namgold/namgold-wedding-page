@@ -43,7 +43,7 @@ export const places: Place[] = [
     receptionDurationMin: 210,
     venueName: "Nhà hàng tiệc cưới Hoàng Long",
     venueAddress: "xã Tân Hội, Đức Trọng, Lâm Đồng",
-    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d7813.392!2d108.28363481223674!3d11.715924088447979!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3171458713dbc3f1%3A0x8feddf8771301082!2zTmhhzIAgSGHMgG5nIFRpw6rMo2MgQ8awxqHMgWkgSG9hzIBuZyBMb25n!5e0!3m2!1sen!2s!4v1795252716771!5m2!1sen!2s",
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d7000!2d108.28363481223674!3d11.715924088447979!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3171458713dbc3f1%3A0x8feddf8771301082!2zTmhhzIAgSGHMgG5nIFRpw6rMo2MgQ8awxqHMgWkgSG9hzIBuZyBMb25n!5e0!3m2!1sen!2s!4v1795252716771!5m2!1sen!2s",
     lunar: {vi: "Nhằm ngày 20 tháng 02 năm Đinh Mùi", en: "Lunar date: 20/02/2027"},
     schedule: [
       { time: "08:00", ceremony: true },
@@ -62,7 +62,7 @@ export const places: Place[] = [
     receptionDurationMin: 210,
     venueName: "Nhà hàng Champa Island Nha Trang",
     venueAddress: "304 đường 2/4, phường Tây Nha Trang, tỉnh Khánh Hoà",
-    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3404.282!2d109.19140260357534!3d12.263785738989837!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3170678bc89ad369%3A0x7c16b00c1dcbfb3f!2sChampa%20Island%20Nha%20Trang%20-%20Resort%20Hotel%20%26%20Spa!5e0!3m2!1sen!2sus!4v1795252696961!5m2!1sen!2sus",
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d7000!2d109.19140260357534!3d12.263785738989837!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3170678bc89ad369%3A0x7c16b00c1dcbfb3f!2sChampa%20Island%20Nha%20Trang%20-%20Resort%20Hotel%20%26%20Spa!5e0!3m2!1sen!2sus!4v1795252696961!5m2!1sen!2sus",
     hall: { vi: "Ganesha", en: "Ganesha" },
     lunar: {vi: "Nhằm ngày 21 tháng 02 năm Đinh Mùi", en: "Lunar date: 21/02/2027"},
     schedule: [
@@ -80,7 +80,7 @@ export const places: Place[] = [
     receptionDurationMin: 210,
     venueName: "Grand Palace",
     venueAddress: "63 Mạc Đĩnh Chi, phường Tân Định, thành phố Hồ Chí Minh",
-    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d7838.619!2d106.69357751222861!3d10.787591789318018!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752939b6555547%3A0xa87137a6d585594e!2sGrand%20Palace%20Wedding%20And%20Convention!5e0!3m2!1sen!2s!4v1795252734510!5m2!1sen!2s",
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d7000!2d106.69357751222861!3d10.787591789318018!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752939b6555547%3A0xa87137a6d585594e!2sGrand%20Palace%20Wedding%20And%20Convention!5e0!3m2!1sen!2s!4v1795252734510!5m2!1sen!2s",
     hall: { vi: "Mercury Tầng 4", en: "Mercury 4th Floor" },
     dressCode: pinkBeigeWhite,
     lunar: { vi: "Nhằm ngày 27 tháng 02 năm Đinh Mùi", en: "Lunar date: 27/02/2027" },
