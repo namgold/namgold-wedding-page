@@ -40,6 +40,9 @@ export function Invitation({ initialLang, place }: { initialLang: Lang; place: P
   // Play inside the click handler: iOS Safari only allows audio started by a user gesture.
   const open = () => {
     audio.current?.play().catch(() => {});
+  };
+  // Called when the cover's opening animation ends.
+  const done = () => {
     setOpened(true);
     window.scrollTo(0, 0);
   };
@@ -49,7 +52,7 @@ export function Invitation({ initialLang, place }: { initialLang: Lang; place: P
       {wedding.musicSrc && <audio ref={audio} src={wedding.musicSrc} loop preload="none" />}
       <LangToggle t={t} href={toggleHref} onSwitch={switchLang} />
       {!opened ? (
-        <Cover t={t} place={place} onOpen={open} />
+        <Cover t={t} place={place} onOpen={open} onDone={done} />
       ) : (
         <>
           <Music t={t} audioRef={audio} />

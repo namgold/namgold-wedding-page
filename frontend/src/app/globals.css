@@ -108,6 +108,39 @@ body:has(.page-frame) { background: var(--color-blush); }
   50% { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 6px 35px rgb(157 109 99 / .5); }
 }
 .seal { animation: seal-pulse 2s ease-in-out infinite; }
+/* Cover opening: the seal breaks, a ring expands, petals burst, the card flies up and the backdrop fades. */
+@keyframes seal-break {
+  0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+  30% { transform: translate(-50%, -50%) scale(1.15) rotate(5deg); opacity: .9; filter: brightness(1.3); }
+  60% { transform: translate(-50%, -50%) scale(1.05) rotate(-3deg); opacity: .5; filter: brightness(1.5); }
+  100% { transform: translate(-50%, -50%) scale(0) rotate(15deg); opacity: 0; filter: brightness(2); }
+}
+.seal-break { animation: seal-break .5s cubic-bezier(.4, 0, .2, 1) forwards; }
+@keyframes seal-ring {
+  from { transform: translate(-50%, -50%) scale(.8); opacity: .8; }
+  to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+.seal-ring { animation: seal-ring .6s ease-out forwards; }
+@keyframes seal-bloom {
+  0% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+  45% { transform: scale(1.16) rotate(-3deg); filter: brightness(1.08); }
+  100% { transform: scale(1.06) rotate(0deg); filter: brightness(1.02); }
+}
+.seal-bloom { animation: seal-bloom .36s ease-out forwards; }
+@keyframes particle-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(0deg); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(var(--rs)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.6) rotate(var(--re)); }
+}
+.burst { border-radius: 80% 0 80% 0; opacity: 0; animation: particle-burst 1.4s cubic-bezier(.25, .46, .45, .94) forwards; }
+@keyframes cover-away {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  15% { transform: translateY(10px) rotate(.5deg); opacity: 1; }
+  100% { transform: translateY(-120vh) rotate(-2deg); opacity: 0; }
+}
+.cover-away { animation: cover-away .8s ease-in forwards; }
+@keyframes cover-fade { to { background: transparent; } }
+.cover-fade { animation: cover-fade .8s ease-in forwards; }
 @keyframes shine { 0% { left: -100%; } 50%, 100% { left: 100%; } }
 .shine { animation: shine 3s ease-in-out infinite; }
 @keyframes pop-in { from { opacity: 0; transform: scale(.94) translateY(12px);} to { opacity: 1; transform: none; } }
@@ -156,7 +189,7 @@ body:has(.page-frame) { background: var(--color-blush); }
 .igb:hover .igb-confetti, .igb:focus-visible .igb-confetti { animation: igb-confetti var(--t, 1s) ease-out var(--d, 0s) infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .petal, .seal, .shine, .pop-in, .animate-spin-cd, .igb-bob, .igb-shadow, .igb-sparkle, .igb-hint,
+  .petal, .seal, .shine, .pop-in, .seal-break, .seal-ring, .seal-bloom, .burst, .cover-away, .cover-fade, .animate-spin-cd, .igb-bob, .igb-shadow, .igb-sparkle, .igb-hint,
   .animate-dance-1, .animate-dance-2, .animate-dance-3, .animate-dance-4 { animation: none !important; }
   .petal { display: none; }
   .igb:hover .igb-box, .igb:hover .igb-decor, .igb:hover .igb-confetti,
