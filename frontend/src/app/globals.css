@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+/* Palette, fonts and sizes follow the boho-floral-pink invitation the owner picked (see temp/origin). */
+@theme {
+  --color-rose: #9d6d63;
+  --color-rose-deep: #7a5a52;
+  --color-wine: #4a1d27;
+  --color-wine-dark: #2a0f16;
+  --color-blush: #fffaf7;
+  --color-petal: #f5c6c9;
+  --color-lilac: #bab4c7;
+  --color-cd: #c4897f;
+  /* Body text: Baskerville where the device has it (iOS, macOS), otherwise Times New Roman. */
+  --font-serif: "Baskerville", "Times New Roman", Times, serif;
+  /* Section headings: always Times New Roman bold. */
+  --font-title: "Times New Roman", Times, serif;
+  /* Couple names on the cover and hero. */
+  --font-display: var(--font-playfair), "Baskerville", "Times New Roman", serif;
+  /* Big names in the announcement. */
+  --font-names: var(--font-garamond), "Times New Roman", serif;
+  --font-cursive: var(--font-script), cursive;
+}
+
+/* Page column width (Page in Floral.tsx); the floating buttons sit 1rem inside it. */
+:root { --col: 480px; }
+@media (min-width: 48rem) { :root { --col: 900px; } }
+.in-col-left { left: max(1rem, calc(50% - var(--col) / 2 + 1rem)); }
+.in-col-right { right: max(1rem, calc(50% - var(--col) / 2 + 1rem)); }
+
+html { scroll-behavior: smooth; }
+body {
+  background: #fff;
+  color: var(--color-rose);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Floral layers (Floral.tsx): where the column is narrower than the screen, the flowers fade out over the last 40px
+   before the column edge instead of a hard cut. Not on phones (481px = the 480px --col + 1: no mask, no cost); the
+   fade shrinks to 0 when the screen is not wider than the column (768-900px). Eased stops so no line shows. */
+@media (min-width: 481px) {
+  .floral-layer {
+    --fade: clamp(0px, (100vw - var(--col)) / 2, 40px);
+    --edge: linear-gradient(to right,
+      transparent, rgb(0 0 0 / .25) calc(var(--fade) * .35), rgb(0 0 0 / .7) calc(var(--fade) * .7), #000 var(--fade),
+      #000 calc(100% - var(--fade)), rgb(0 0 0 / .7) calc(100% - var(--fade) * .7), rgb(0 0 0 / .25) calc(100% - var(--fade) * .35), transparent);
+    -webkit-mask-image: var(--edge);
+    mask-image: var(--edge);
+  }
+}
+
+/* Guest pages: the side areas and overscroll match the column (not /admin, which has no .page-frame). */
+body:has(.page-frame) { background: var(--color-blush); }
+
+.floral-bg { background: var(--color-blush); }
+
+/* Section title: Times New Roman 24px bold, uppercase, 1px tracking. */
+.h-title {
+  font-family: var(--font-title);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.card-surface {
+  background: rgb(157 109 99 / 0.03);
+  border: 1px solid rgb(157 109 99 / 0.25);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.5rem 1.5rem; border-radius: 10px;
+  background: var(--color-rose); color: var(--color-blush); font-weight: 600;
+  transition: transform .2s ease, opacity .2s ease;
+}
+.btn:hover:not(:disabled) { transform: scale(1.03); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--color-rose); border: 1px solid var(--color-rose); }
+.btn-ghost:hover:not(:disabled) { background: rgb(157 109 99 / 0.1); }
+
+/* Cover: falling petals */
+@keyframes petal-fall {
+  0%   { transform: translate3d(0, -8vh, 0) rotate(0deg); opacity: 0; }
+  10%  { opacity: .5; }
+  50%  { transform: translate3d(var(--drift, 20px), 48vh, 0) rotate(180deg); opacity: .6; }
+  92%  { opacity: .45; }
+  100% { transform: translate3d(0, 105vh, 0) rotate(360deg); opacity: 0; }
+}
+.petal {
+  position: absolute; top: 0;
+  width: var(--size, 14px); height: var(--size, 14px);
+  border-radius: 80% 0 80% 0;
+  animation: petal-fall var(--dur, 12s) ease-in-out var(--delay, 0s) infinite;
+  will-change: transform;
+}
+@keyframes seal-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 20px rgb(157 109 99 / .5); }
+  50% { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 6px 35px rgb(157 109 99 / .5); }
+}
+.seal { animation: seal-pulse 2s ease-in-out infinite; }
+@keyframes shine { 0% { left: -100%; } 50%, 100% { left: 100%; } }
+.shine { animation: shine 3s ease-in-out infinite; }
+@keyframes pop-in { from { opacity: 0; transform: scale(.94) translateY(12px);} to { opacity: 1; transform: none; } }
+.pop-in { animation: pop-in .7s ease both; }
+
+/* Music button: spinning disc and dancing bars */
+@keyframes spin-cd { to { transform: rotate(360deg); } }
+.animate-spin-cd { animation: spin-cd 3s linear infinite; }
+@keyframes dance { 0%, 100% { height: 20%; } 50% { height: 100%; } }
+.animate-dance-1 { animation: dance .4s ease-in-out infinite; }
+.animate-dance-2 { animation: dance .4s ease-in-out .1s infinite; }
+.animate-dance-3 { animation: dance .4s ease-in-out .2s infinite; }
+.animate-dance-4 { animation: dance .4s ease-in-out .3s infinite; }
+
+/* Gift box */
+@keyframes igb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes igb-shadow { 0%, 100% { transform: scaleX(1); opacity: .3; } 50% { transform: scaleX(.9); opacity: .18; } }
+@keyframes igb-sparkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes igb-hint { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes igb-pop {
+  0% { transform: translateY(0) scale(1) rotate(0deg); }
+  45% { transform: translateY(-14px) scale(1.08) rotate(-3deg); }
+  100% { transform: translateY(-8px) scale(1.05) rotate(0deg); }
+}
+@keyframes igb-fly {
+  0% { translate: 0 0; opacity: 1; }
+  55% { translate: var(--fx, 0px) -34px; opacity: 1; }
+  80% { translate: calc(var(--fx, 0px) * 2) -68px; opacity: 0; }
+  81% { translate: 0 0; opacity: 0; }
+  100% { translate: 0 0; opacity: 1; }
+}
+@keyframes igb-confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(var(--cx), var(--cy)) rotate(var(--cr)); opacity: 0; }
+}
+.igb-bob { animation: igb-bob 3s ease-in-out infinite; }
+.igb-shadow { animation: igb-shadow 3s ease-in-out infinite; }
+.igb-box { transition: transform .3s ease; transform-origin: 50% 100%; }
+.igb-hint { animation: igb-hint 2s ease-in-out infinite; }
+.igb-sparkle { animation: igb-sparkle 2s ease-in-out var(--d, 0s) infinite; }
+.igb-decor { animation: none; }
+.igb-confetti { position: absolute; left: 50%; top: 0; opacity: 0; }
+.igb:hover .igb-box, .igb:focus-visible .igb-box { animation: igb-pop .7s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+.igb:hover .igb-decor, .igb:focus-visible .igb-decor { animation: igb-fly var(--t, 1.6s) ease-in-out var(--d, 0s) infinite; }
+.igb:hover .igb-confetti, .igb:focus-visible .igb-confetti { animation: igb-confetti var(--t, 1s) ease-out var(--d, 0s) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .petal, .seal, .shine, .pop-in, .animate-spin-cd, .igb-bob, .igb-shadow, .igb-sparkle, .igb-hint,
+  .animate-dance-1, .animate-dance-2, .animate-dance-3, .animate-dance-4 { animation: none !important; }
+  .petal { display: none; }
+  .igb:hover .igb-box, .igb:hover .igb-decor, .igb:hover .igb-confetti,
+  .igb:focus-visible .igb-box, .igb:focus-visible .igb-decor, .igb:focus-visible .igb-confetti { animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* Form controls (16px+ so iOS Safari does not zoom on focus) */
+.field {
+  width: 100%; border-radius: .5rem; border: 1px solid var(--color-rose);
+  background: rgb(157 109 99 / .04); padding: .75rem 1rem; color: var(--color-rose); font: inherit;
+}
+.field::placeholder { color: rgb(157 109 99 / .6); }
+.field:focus-visible { outline: 2px solid var(--color-rose); outline-offset: 1px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+
+/* Hero names and the fixed flower: positions copied from the original for 3 breakpoints. */
+.hero-names {
+  position: absolute; right: 70px; top: 160px; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.hero-flower { top: 530px; right: -72px; width: 370px; }
+@media (min-width: 768px) {
+  .hero-names { right: 180px; top: 130px; }
+  .hero-flower { top: 600px; right: -88px; width: 480px; }
+}
+@media (min-width: 1024px) {
+  .hero-names { right: 190px; top: 160px; }
+  .hero-flower { top: 700px; right: -104px; width: 580px; }
+}

@@ -1,1 +1,12 @@
 .env
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+tasks/*
+!tasks/_template/
+
+temp
+scripts
+tasks

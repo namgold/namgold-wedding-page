@@ -1,0 +1,84 @@
+# Progress handoff (as of 2026-11-16, end of day)
+
+Read first: `CLAUDE.md` (stack/run), `DECISIONS.md` (decisions, open questions, dashboard steps), `SPEC.md` (v1 frontend spec).
+Parent conventions: `../CLAUDE.md`. Global log stack (separate project): `~/devbox/logging/CLAUDE.md`.
+
+## Current state
+- **Frontend + backend are built and LIVE** at linhhy.namgold.com (`docker compose up -d --build`; `/`, `/en`, `/admin`, `/api/health` return 200 inside the compose network; the public URL was not opened by me).
+- **Content is partly placeholder** (the owner has since replaced venues, halls, dates and bank accounts; hero short names and "Photo N" SVGs remain placeholders). The user will provide the real info later and asked where to fill it in: `frontend/src/content/data.ts` (shared `wedding`: names, parents, addresses, bank accounts, `showBankQr`, `musicSrc`) and `frontend/src/content/places.ts` (per-place `places`: slug, ISO dates, optional ceremony, venue, address, optional `mapUrl`, lunar date, timeline), `vi.ts` / `en.ts` (schedule, dress code, wording), `frontend/public/images/album/` (photos; the album component points at `p1..p6.svg`, so real jpg/webp need a small code change), `components/Qr.tsx` (placeholder pattern, needs real QR images).
+- **Public forms are live without Turnstile** (not configured): protection is honeypot + per-IP rate limit (10 / 10 min) + length limits. Anyone can post wishes and RSVPs right now.
+- **Admin Access is configured (2026-11-21)**: `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD` are set in `.env`; `/admin` and `/api/admin/*` redirect to the Access login and the API returns 403 without a valid token. Login method: One-time PIN (Google being added). If either value is unset again the API returns 503 and `/admin` shows "not configured". Whether a real post-login `/admin` session works was not confirmed by me.
+- **Telegram is off** until `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set.
+- **Nothing is committed** (wedding repo, parent `CLAUDE.md`, and `~/devbox/logging` which is not a git repo). The user has not asked. Standing instruction: rebuild/start the docker stack after verified changes without asking ("start it, always"; repeated 2026-11-21: "always deploy, don't ask again", so PMs set "Deploy live: yes" and do not ask); does not cover commits or pushes.
+
+## What exists
+- `frontend/`: Next.js 16 static export (places `/invitation`, `/ceremony`, `/wedding` VI and `/en/<slug>` EN; no page at `/`; admin `/admin`), Tailwind v4, CSS keyframes. Copy in `src/content/{vi,en}.ts`, data in `data.ts`.
+  - Guestbook: loads `GET /api/messages` on the client (20 per page, "show more"), inline form `WishForm`. RSVP: modal `RsvpDialog` opened from the Reception section. Turnstile via `useCaptcha()` in `components/Turnstile.tsx` (site key fetched from `/api/config`; widget only if set). Honeypot field `website`.
+  - Admin: `components/admin/AdminApp.tsx` (Wishes: hide/show; RSVPs: summary, list, CSV link). Own root layout `app/(admin)/admin/layout.tsx`, `noindex`.
+- `api/`: Go service (`main.go config.go store.go handlers.go access.go integrations.go validate.go ratelimit.go`, tests in `server_test.go`, 12 tests passing). SQLite WAL, single connection, UTC unix seconds. Cloudflare Access JWT verified with stdlib only: RS256 only, JWKS cached from the team's `/cdn-cgi/access/certs`, checks `aud`, `iss`, `exp`, optional `ADMIN_EMAILS`, same-origin `Origin` check on PATCH. Telegram best effort in a goroutine, logs never contain the bot token URL. Logs are JSON via `slog`; events: `message_created`, `rsvp_created`, `message_moderated`, `rate_limited`, `honeypot_hit`, `captcha_failed`, `admin_denied`, `db_error`, `telegram_request_failed`. Guest names and message text are never logged (a test enforces it).
+- `docker-compose.yaml`: `frontend`, `api` (volume `wedding-data`), `cloudflared`. `frontend/nginx.conf` proxies `/api/` (variable + resolver so nginx starts even if `api` is down), `client_max_body_size 32k`, JSON access log (`level` derived from status), `/admin` is `no-store` + `X-Robots-Tag noindex`.
+- `.env.example` lists every variable. Real `.env` holds only the tunnel token so far. **The tunnel token was printed once into an earlier session log by mistake; rotating it is the owner's call.**
+
+## Logging (global, outside this repo): `~/devbox/logging`
+- Compose project `logging`: `vector` (reads every container via the Docker socket, shapes fields, dedupes, disk-buffered) -> `victorialogs` (volume `vlogs-data`, retention `LOG_RETENTION` default 30d, disk cap 10GiB). Vector config has unit tests (`vector test`).
+- UI: `http://<devbox host>:9428/select/vmui`. Published on **all interfaces with no auth**, same exposure as Dozzle (`:8880`). Set `VLOGS_BIND=127.0.0.1` in `~/devbox/logging/.env` to make it local-only.
+- `backfill.py` already imported Docker's existing history (up to 2026-11-16T02:06:09Z, newest 100k lines per container). Not idempotent: do not re-run the same range. About 540k of 845k lines were older than the 30d retention and were dropped.
+- Query from the shell: see the `Q()` helper in `~/devbox/logging/CLAUDE.md`. Example: `compose_project:namgold-wedding level:warn`.
+- Memory note `logging-stack` points here.
+
+### Open questions for the user (logging)
+1. **Retention:** keep 30d, or raise (suggested 180d) and import the older history with `./backfill.py --until 2026-10-17T00:00:00Z` after raising `LOG_RETENTION` (commands in `~/devbox/logging/CLAUDE.md`).
+2. **UI exposure:** it is open on the network with no login. Suggested fix, not done: VictoriaLogs basic auth (`-httpAuth.username/-httpAuth.password`, with the same credentials in Vector's sink) with the password in `.env`. Alternatives: bind to one LAN/Tailscale IP, or Cloudflare Access. Note: Docker-published ports often bypass `firewalld`, so the host firewall may not be protecting this port (I suggested a `firewall-cmd` earlier; that may be moot).
+3. VictoriaLogs' UI is a query tool, not a per-container tail viewer; Dozzle stays for live browsing. A Grafana front end was offered, not built.
+4. Docker's own json-file logs have no size cap on this box (no `/etc/docker/daemon.json`); setting `max-size`/`max-file` needs a Docker restart, so it is the owner's call.
+
+## Verified
+Go (in `golang:1.26-alpine`): `go vet` + 12 tests (message flow, hidden messages not leaked, rune-based length limits with Vietnamese text, honeypot, per-IP rate limit, RSVP rules, Turnstile pass/fail, admin fails closed, JWT: alg none/HS256/wrong aud/wrong iss/expired/forged/email allow-list, Origin check, CSV formula injection, superseded RSVPs, JSON events without guest text).
+Browser (Playwright, 390 and 1280 wide, throwaway network): post a wish (HTML shown as plain text), RSVP flow incl. focus staying in the field across countdown ticks, Esc closes dialog, EN validation error, admin 503/403/OK states and hide/show PATCH (mocked admin responses), no horizontal overflow. Through nginx: 413 on a 40 KB body, 429 on the 11th request per `CF-Connecting-IP`.
+Logging: live API events and nginx requests appear in VictoriaLogs with searchable fields; Vector restart gap and last-line duplicate on container stop were measured and the duplicate fixed with `dedupe`.
+**Not tested:** real Cloudflare Access login (needs dashboard setup), real Turnstile widget, real Telegram delivery, iPhone "Add to calendar", the public URL, access to port 9428 from the user's laptop (user reported it failing before I changed the bind from 127.0.0.1 to 0.0.0.0; not confirmed since).
+
+## Done 2026-11-16 (second session): owner requirements
+3 place versions (per-place data, routes, language toggle keeps the place; the owner then asked for NO central chooser page and set the slugs `/invitation`, `/ceremony`, `/wedding`), RSVP stores the place (guarded DB migration, per-place admin totals, CSV column, Telegram text), bank QR switch (`showBankQr`, off), readability pass (contrast, sizes, tap targets), nginx gzip and trailing-slash redirects. Verified with 15 Go tests (incl. old-schema migration) and a Playwright run at 390px on a throwaway network, then deployed with `docker compose up -d --build`. Details in `DECISIONS.md` "Built on owner requirements".
+Still open from it: the 3 site QR images are not generated, the 3G budget is not set (first load about 314 KB compressed), fonts/JS/mp3 not reduced, real QR images (site and bank) not generated, all place data is placeholder, no screen-reader or real-user check. Playwright gotcha: `innerText` returns CSS `text-transform` output (uppercase), so match case-insensitively.
+
+## What is left (suggested order)
+1. **Owner dashboard steps** (see `DECISIONS.md` "Manual steps"): Access app + AUD/team domain are done; still open: confirm a real login reaches the admin UI, Turnstile keys, Telegram bot. Then fill `.env` and `docker compose up -d`; then open `/admin` through Access and test hide/show for real, one real Turnstile submission, one Telegram message. Do not commit emails or tokens.
+2. **Replace placeholders** with real info (ask the user, do not invent): see "Current state" for the files.
+3. **Artwork**: floral art and gift-box images are now the template's own files (owner asked for sameness on 2026-11-16); confirm the licence. Album/hero photos are still placeholder SVGs; hero short names (`groomShort`, `brideShort` in `data.ts`) are placeholders.
+4. **Music**: set `musicSrc` in `data.ts` to a licensed file in `public/audio/`.
+5. **Backup plan** for the SQLite volume (see `DECISIONS.md`); RSVP data is what matters.
+6. Logging open questions above (retention, UI auth).
+7. Possible follow-ups the user has not asked for: admin delete, RSVP edit link, email/Telegram digest, Lighthouse pass.
+8. **Commit**: ask the user first. Remote `git@github.com:namgold/namgold-wedding-page.git`, key `~/.ssh/id_ed25519` (never `id_github_fitchthatbuck`). Parent repo only tracks its `CLAUDE.md`. `~/devbox/logging` has no repo yet.
+
+## Gotchas
+- This shell runs inside the `devbox` container; the Docker daemon is on the host. Host to container bind mounts work (`-v /home/namgold/...:/x`), but writes from a container back to the host did not show up: stream a tar over stdout instead.
+- Host Chrome and the Playwright MCP browser crash; use `mcr.microsoft.com/playwright:v1.56.0-noble` + `npm i playwright@1.56.0` (feed the script via stdin).
+- No Go on the host: run Go in `golang:1.26-alpine` (test recipe in `CLAUDE.md`).
+- Published ports are not reachable from the shell: use `--network container:<name>` or `--network namgold-wedding_default`.
+- Build test images under other names and use a throwaway network (compose hard-codes `container_name`, so a second compose project collides with the live one).
+- `next build` needs network (Google fonts). Static export: no server APIs; the lunar date is a hardcoded string.
+- `frontend/out`, `.next`, `node_modules` are gitignored; `package-lock.json` and `api/go.sum` are needed by the Dockerfiles.
+- Editing `~/devbox/logging/vector.yaml` needs `docker compose restart vector` (bind-mounted file, compose does not recreate).
+- Docker's `--since` takes `168h`-style durations, not `7d`.
+
+## Done 2026-11-16 (third session): match the original template
+Frontend rebuilt to match `temp/origin` (fonts, floral backgrounds with parallax, hero polaroids, coverflow album, calendar, map, dress code, timeline grid, guestbook form, gift box, CD music button, envelope cover). Verified with Playwright screenshots at 390 and 1280 (no console errors reported, fixed `FitText` and Families overflow), deployed with `docker compose up -d --build`. Not verified: the map iframe (the test network has no internet), real phones, side-by-side pixel diff for every section. Uncommitted.
+
+## Done 2026-11-21 (fourth session): per-place wording and polish
+All deployed with `dcu --build frontend` / `docker compose up -d --build frontend` and checked with Playwright on the live compose network (390 and 1280, no console errors). Details and reasons in `DECISIONS.md` "Changes 2026-11-21"; structure in `SPEC.md`.
+- `/` serves the `/wedding` page (nginx internal `try_files`); `/en` still 404.
+- New per-place config in `places.ts`: `hall`, `ceremonyName`, `receptionName`, `dressCode`; copy placeholders `{ceremony}` / `{reception}` (`lib/fill.ts`); venue block restyled (name, hall, address); timeline ceremony row from `ceremonyName`.
+- Date line on one line and bold (`DateLine.tsx`, `dateText` in copy); hero labels Chú rể / Cô dâu; larger address and birth-order text; dress code pink, beige, white.
+- Music pauses with a 0.5 s fade when the page is hidden and resumes with a fade-in (`lib/focusFade.ts`).
+- Not verified: real phones (iOS/Android background and screen-off behaviour), the venue map embed (test network has no internet), `.ics` title in a calendar app. Owner to confirm my English wording: "Vu Quy ceremony", "wedding celebration", "Mercury 4th Floor", "MARCH 28, 2027", "Wedding rituals" (schedule row "Nghi lễ"). Nothing is committed.
+
+## Done 2026-11-21: PC frame (task desktop-frame, slot 1, released)
+On PC the sides around the page column are blush `#FFFAF7` with no border, and the EN/VI and music buttons sit inside the column. Files: `globals.css`, `Floral.tsx`, `LangToggle.tsx`, `Music.tsx`. QA passed C1-C7 at 390, 600, 768, 1280 and 1920px (VI and EN). Deployed with `docker compose up -d --build frontend` and checked on the live compose network. Reports: `tasks/desktop-frame/`. Not verified: the owner's own PC and phone, and whether the hard floral cut at the column edge is acceptable (see `DECISIONS.md`). Uncommitted.
+
+## Done 2026-11-21: floral edge fade (task floral-edge-fade, slot 1, released)
+On PC the floral art fades out over the last 40px before the column edge instead of a hard cut (`Floral.tsx`, `globals.css`); phones unchanged. QA was stopped early by the owner (to save tokens): edge pixels, content, 390px and console checked; parallax smoothness and button clicks not re-tested (the engineer's 131-check script passed them before deploy). Deployed with `docker compose up -d --build frontend`, curl-checked. Not verified: the owner's own PC. Uncommitted.
+
+## Done 2026-11-21 (fifth session): hostname rename to linhhy.namgold.com
+Docs and the `.ics` UID now say `linhhy.namgold.com`; details and reasons in `DECISIONS.md` "Changes 2026-11-21". Verified from the devbox against the public URL: `/invitation`, `/ceremony`, `/wedding`, `/en/invitation`, `/api/health` and `/` return 200; DNS resolves via 1.1.1.1, 8.8.8.8 and the local resolver; `/admin` redirects to the Access login for the new host; cloudflared logged the new ingress `linhhy.namgold.com -> http://frontend:80`. The owner still saw an error in their own browser: likely a cached failed DNS lookup (not confirmed, the error text was not given). Not verified: a real post-login `/admin` session on the new host. When the Turnstile widget is created, allow `linhhy.namgold.com`. The live frontend container already contains the new `.ics` UID (grepped in `_next/static`); I did not rebuild it myself. Nothing is committed.

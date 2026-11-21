@@ -10,6 +10,24 @@ services:
       dev.dozzle.group: namgold.com
     restart: unless-stopped
 
+  api:
+    build: ./api
+    container_name: namgold-wedding-api
+    labels:
+      dev.dozzle.group: namgold.com
+    restart: unless-stopped
+    volumes:
+      - wedding-data:/data
+    # Unset variables become empty strings, which the API treats as "feature off".
+    environment:
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: namgold-wedding-cloudflared
@@ -21,3 +39,6 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - frontend
+
+volumes:
+  wedding-data:

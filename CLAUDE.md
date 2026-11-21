@@ -1,20 +1,60 @@
-# wedding (wedding.namgold.com)
+# wedding (linhhy.namgold.com)
 
 Wedding page for namgold. Child repo of the `namgold.com` parent; see `../CLAUDE.md` for conventions.
 Not to be confused with `~/devbox/wedding`, the private planning-notes repo.
 
+## Status
+Frontend and backend are built and live (see `SPEC.md`), but with PLACEHOLDER content. Read `progress.md` (handoff) and `DECISIONS.md` before starting any work. Doc roles: `SPEC.md` = what is built and the owner's requirements, `DECISIONS.md` = why, assumptions and open questions, `progress.md` = handoff and what is left. Turnstile, Telegram and the admin login stay off until the dashboard steps in `DECISIONS.md` are done and `.env` is filled; the code handles each being unset.
+
+## Agent workflow (PM, engineer, QA): disabled
+Temporarily off (owner, 2026-11-21): too slow and token-heavy for simple tasks. Plain `claude` here is a normal session. Full notes are in `temp/agent-workflow.md`; read them only if asked to use or re-enable it (`claude --agent pm`), and always when you are the pm, engineer or qa agent (the rules there bind you).
+
 ## Stack
-- `frontend/` — static HTML served by nginx:alpine (no build step)
-- `cloudflared` — its own tunnel (token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN`) routing wedding.namgold.com → `http://frontend:80`
+- `frontend/` — Next.js (static export, TypeScript, Tailwind v4). Multi-stage Dockerfile: Node builds `out/`, nginx:alpine serves it. No Node in production.
+- Routes: `/invitation` (groom, Nha Trang), `/ceremony` (bride, Tan Hoi, Lam Dong), `/wedding` (Ho Chi Minh City), each in Vietnamese; English at `/en/<slug>`. **No central page**: `/en` and `/index.html` are 404 on purpose, and `/` serves the `/wedding` page (owner, 2026-11-21; nginx `try_files /wedding.html`, URL stays `/`), and no page may link to or mention another place (guests must not learn the other URLs exist). The 3 site QRs point at these URLs: never break one after it is printed (add an nginx redirect). Per-place data (date, venue, hall, ceremony and reception names, dress code, timeline, lunar) is in `places` in `src/content/places.ts` (fields listed in `SPEC.md` "Per-place config"; copy strings use `{ceremony}` and `{reception}` placeholders, filled at render, so copy stays serializable) (server-only: keep it out of client components so it stays out of the shared bundle); shared data in `wedding` in `data.ts`. Copy lives in `frontend/src/content/{vi,en}.ts`, data in `data.ts`. **Many values are still placeholders (hero short names, photos, wishes); the owner has replaced some (venues, halls, dates, bank accounts): check before assuming.** The lunar date is a hardcoded string.
+- `api/` — Go (stdlib `net/http`, `modernc.org/sqlite`, no cgo), compose service `api` on the internal network only, SQLite in the `wedding-data` volume at `/data`. Endpoints: public `GET/POST /api/messages`, `POST /api/rsvp`, `GET /api/config`, `GET /api/health`; admin (`Cf-Access-Jwt-Assertion` verified, fails closed with 503/403) under `/api/admin/*`. nginx proxies `/api/` to it. The admin UI is `frontend/src/components/admin/AdminApp.tsx` served at `/admin`.
+- `cloudflared` — its own tunnel (token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN`) routing linhhy.namgold.com → `http://frontend:80`
 - No host port published; the tunnel reaches nginx over the compose network.
+- Design: since 2026-11-16 the owner asked for the frontend to match the original boho-floral-pink template saved in `temp/origin/index.html` (palette `#9D6D63`/`#FFFAF7`, Times/Baskerville body, Playfair/EB Garamond/Ms Madi names, px-offset floral art with scroll parallax via `--s` in `components/Floral.tsx`). Floral art in `public/images/floral` and `public/images/giftbox` is the template vendor's: check licensing before the site is promoted. Do not copy its code or sample text.
+- Two different QRs: the **site QR** (invitation, opens a place's URL, 3 variations) and the **bank QR** (`components/Qr.tsx`, gift box, optional with an on/off switch). The bank QR is hidden by `wedding.showBankQr = false` in `data.ts` (the QR image is still a fake placeholder). The 3G performance budget is not set yet.
 
 ## Running
 ```
-docker compose up -d --build
-docker compose logs cloudflared
+cd frontend && npm install && npm run dev        # UI only: no /api proxy, forms show a network error; use compose for full stack
+cd frontend && npm run build                     # static export to frontend/out
+cd frontend && npx tsc --noEmit -p .            # typecheck (there is no ESLint config; `npx eslint` errors out)
+docker compose up -d --build                     # REPLACES THE LIVE SITE via the tunnel
+dcu --build frontend                             # fish alias dcu = docker compose up --detach; rebuilds only the frontend (use `api` for Go changes)
+docker compose logs api cloudflared
 docker run --rm --network namgold-wedding_default curlimages/curl -sS -o /dev/null -w "%{http_code}\n" http://frontend:80
 ```
+To test an image without touching the live site, build it under another name and run it without the tunnel (`docker build -f frontend/Dockerfile -t wedding-test .`). `docker run -p` ports may not be reachable from the shell here; test with `--network container:<name>`.
+
+## Go API (no Go on the host: use Docker)
+Test: `tar -C api -cf - . | docker run --rm -i golang:1.26-alpine sh -c 'mkdir /src && tar -C /src -xf - && cd /src && gofmt -l . ; go vet ./... && go test -count=1 ./...'` (`gofmt -l` must print nothing). To get `go.mod`/`go.sum`/gofmt'ed files back, stream a tar out on stdout (bind mounts back to the host show nothing) and send logs to stderr.
+**Schema changes:** `CREATE TABLE IF NOT EXISTS` never alters the live `wedding.db`. Add new columns with a guarded `ALTER TABLE` in `migrate()` (`store.go`) and extend `TestMigrationFromOldSchema`, which opens an old-schema file. Fresh-DB tests alone pass while production returns 500. The API does not know place slugs (shape check only), so renaming a place needs no API change.
+Env vars are listed in `.env.example`; all optional except the tunnel token.
+
+## Logs
+Everything logs to stdout as JSON lines (Go `slog`; nginx `log_format json`) and is collected by the global `~/devbox/logging` stack (see its `CLAUDE.md`). Filter with e.g. `compose_project:namgold-wedding level:warn`. Events from the API: `message_created`, `rsvp_created`, `message_moderated`, `rate_limited`, `honeypot_hit`, `captcha_failed`, `admin_denied`, `db_error`, `telegram_request_failed`. Never log guest names or message text (tests enforce it).
+
+## Verifying UI changes
+No-leak check for the "no central page" rule: after a build, run `docker exec <ctr> sh -c 'cd /usr/share/nginx/html && grep -rlF "<another place venue>" .'`. Each place's venue, name and address must appear only in that place's own `<slug>*.html/.txt` files, never in `_next/static` chunks or another place's files.
+Build a throwaway image, run it, point the Playwright container at `http://localhost` via `--network container:<name>`. Check: no console errors, no horizontal overflow at 390px, `/` returns the wedding page and `/en` returns 404. For full-stack checks put the api image (`--network-alias api`) and the frontend image on a throwaway network and point Playwright at the frontend container (`/api/admin/*` needs a Cloudflare JWT, so mock it with `page.route`; auth itself is covered by the Go tests).
+Playwright container: a bind-mounted script from here shows up as an empty dir, so feed it on stdin: `docker run --rm -i --network <net> mcr.microsoft.com/playwright:v1.56.0-noble sh -c 'mkdir -p /w && cat > /w/t.mjs && cd /w && npm i playwright@1.56.0 --silent >/dev/null 2>&1; node t.mjs' < t.mjs`. `innerText` applies CSS `text-transform` (uppercase), so match text case-insensitively. A reused test API container keeps data between runs, so use `.first()` on text locators.
+Most sections render only after the cover is opened, in the browser. `curl | grep` finds just the copy and place data passed in as props. To check rendered text, open the page in Playwright and click the cover button first ("Mở thiệp" on `/<slug>`, "Open invitation" on `/en/<slug>`), then read `innerText`.
+Screenshot out of the Playwright container: write the PNG to `/tmp/x.png`, log to stderr (`node d.js >&2`), then `cat /tmp/x.png` to stdout and redirect it to a file on the host.
+After renaming or deleting a route, `tsc` fails on stale `frontend/.next/types`: `rm -rf frontend/.next/types`.
+nginx `try_files` on a directory with no index returns 403. Any route directory under `out/` that is not a page needs an explicit `return 404` (done for `/`, `/en`, `/index.html`, the base image's stock welcome page).
+
+## Frontend notes
+- Music: the `<audio>` lives in `Invitation.tsx` (the cover's Open click calls `play()` so iOS allows it); `components/Music.tsx` is the button; `lib/focusFade.ts` fades out and pauses when the page is hidden, resumes with a fade-in when visible (focus alone does not matter). Test by overriding `document.hidden` and dispatching `visibilitychange` in Playwright.
+- Text that must fit one line (names, the date line) uses `components/FitText.tsx`, which measures its parent: the parent must be a block element (an inline parent measures 0).
+- Parallax floral art: `components/Floral.tsx`, scroll offset in the `--s` CSS variable.
+
+## Page weight (3G target)
+Measure first load from `frontend/out/wedding.html` (any place page; there is no `index.html`): sum the `/_next/static/*.{js,css,woff2}` files it references, raw and gzipped (about 750 KB raw / 314 KB compressed on 2026-11-16, no budget yet). nginx has `gzip on` for text types (woff2 is already compressed). `images.unoptimized` is on, so compress real photos by hand.
 
 ## Cloudflare setup
-- Zero Trust > Networks > Tunnels > tunnel `wedding` > Public Hostname: `wedding.namgold.com` → `HTTP` `frontend:80`
+- Zero Trust > Networks > Tunnels > tunnel `wedding` > Public Hostname: `linhhy.namgold.com` → `HTTP` `frontend:80`
 - Remotely managed: the route lives in the dashboard; there is no `config.yml`.
