@@ -6,6 +6,12 @@ Not to be confused with `~/devbox/wedding`, the private planning-notes repo.
 ## Status
 Frontend and backend are built and live (see `SPEC.md`), but with PLACEHOLDER content. Read `progress.md` (handoff) and `DECISIONS.md` before starting any work. Doc roles: `SPEC.md` = what is built and the owner's requirements, `DECISIONS.md` = why, assumptions and open questions, `progress.md` = handoff and what is left. Turnstile stays off until its dashboard steps in `DECISIONS.md` are done and `.env` is filled; Telegram is live (see "Telegram notifications"); the code handles each being unset.
 
+The LIVE DB holds 500 seeded wishes (ids 5-504) and 500 seeded RSVPs (ids 7-506), which show on the public guestbook; remove them before the site is promoted (SQL and backup name in `DECISIONS.md` "Changes 2026-11-22").
+
+## Git
+- The tree often holds the owner's uncommitted edits (e.g. `places.ts`, calendar/ICS work). Stage files by name, never `git add -A` / `commit -a`; leave theirs alone and mention them.
+- The owner wants atomic commits (one logical change each). When changes overlap in one file, rebuild each intermediate state of the file and run `tsc` (frontend) or the Go test one-liner (api) on it before committing, so every commit builds.
+
 ## Agent workflow (PM, engineer, QA): disabled
 Temporarily off (owner, 2026-11-21): too slow and token-heavy for simple tasks. Plain `claude` here is a normal session. Full notes are in `temp/agent-workflow.md`; read them only if asked to use or re-enable it (`claude --agent pm`), and always when you are the pm, engineer or qa agent (the rules there bind you).
 
@@ -24,7 +30,7 @@ cd frontend && npm install && npm run dev        # UI only: no /api proxy, forms
 cd frontend && npm run build                     # static export to frontend/out
 cd frontend && npx tsc --noEmit -p .            # typecheck (there is no ESLint config; `npx eslint` errors out)
 docker compose up -d --build                     # REPLACES THE LIVE SITE via the tunnel
-dcu --build frontend                             # fish alias dcu = docker compose up --detach; rebuilds only the frontend (use `api` for Go changes)
+dcu --build frontend                             # fish alias dcu = docker compose up --detach; rebuilds only the frontend (use `api` for Go changes). Agents run bash, so use `docker compose up -d --build frontend` (or `api`)
 docker compose logs api cloudflared
 docker run --rm --network namgold-wedding_default curlimages/curl -sS -o /dev/null -w "%{http_code}\n" http://frontend:80
 ```
@@ -51,6 +57,8 @@ Build a throwaway image, run it, point the Playwright container at `http://local
 Playwright container: a bind-mounted script from here shows up as an empty dir, so feed it on stdin: `docker run --rm -i --network <net> mcr.microsoft.com/playwright:v1.56.0-noble sh -c 'mkdir -p /w && cat > /w/t.mjs && cd /w && npm i playwright@1.56.0 --silent >/dev/null 2>&1; node t.mjs' < t.mjs`. `innerText` applies CSS `text-transform` (uppercase), so match text case-insensitively. A reused test API container keeps data between runs, so use `.first()` on text locators.
 Most sections render only after the cover is opened, in the browser. `curl | grep` finds just the copy and place data passed in as props. To check rendered text, open the page in Playwright and click the cover button first ("Mở thiệp" on `/<slug>`, "Open invitation" on `/en/<slug>`), then read `innerText`.
 Screenshot out of the Playwright container: write the PNG to `/tmp/x.png`, log to stderr (`node d.js >&2`), then `cat /tmp/x.png` to stdout and redirect it to a file on the host.
+Quick loop: `docker build -q -f frontend/Dockerfile -t wedding-test . && docker run -d --rm --name wedding-test-ctr wedding-test`, run the Playwright container with `--network container:wedding-test-ctr`, then `docker rm -f wedding-test-ctr`. Mock `/api/admin/*` and `/api/messages?*` with `page.route` (add a delay to see skeletons). For skeleton or row heights compare `getBoundingClientRect().height` of the skeleton and the real card.
+Memory/DOM-node checks: "nodes keep growing while scrolling" is usually detached nodes awaiting GC, not a leak. Confirm with CDP `HeapProfiler.collectGarbage` then `Performance.getMetrics` (nodes return to about 350). Keying virtual rows by `index % N` does NOT recycle elements; use `lib/useRowSlots.ts`.
 After renaming or deleting a route, `tsc` fails on stale `frontend/.next/types`: `rm -rf frontend/.next/types`.
 nginx `try_files` on a directory with no index returns 403. Any route directory under `out/` that is not a page needs an explicit `return 404` (done for `/`, `/en`, `/index.html`, the base image's stock welcome page).
 
