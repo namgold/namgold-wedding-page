@@ -80,7 +80,7 @@ export const en: Copy = {
     close: "Close",
     groom: "Groom",
     bride: "Bride",
-    qrNote: "Sample QR code, not scannable",
+    qrNote: "Scan the QR code to send a wedding gift",
   },
   footer: "Your presence is an honor to our families!",
   music: { on: "Play music", off: "Mute music" },

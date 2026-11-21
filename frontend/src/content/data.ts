@@ -16,12 +16,12 @@ export const wedding = {
   brideAddress: "Tân Hội, Đức Trọng, Lâm Đồng",
   tz: "Asia/Ho_Chi_Minh",
   gifts: [
-    { role: "groom", bank: "MBBank", number: "0931637301", holder: "NGUYEN HOANG NAM" },
-    { role: "bride", bank: "Vietcombank", number: "linhhy", holder: "HY PHAM NGOC LINH" },
+    { role: "groom", bank: "MBBank", number: "0931637301", holder: "NGUYEN HOANG NAM", qr: "/images/gift/qr-groom.png", icon: "/images/gift/bank-mb.webp" },
+    { role: "bride", bank: "MoMo", number: "0334568981", holder: "HY PHAM NGOC LINH", qr: "/images/gift/qr-bride.webp", icon: "/images/gift/bank-momo.webp" },
   ],
   // Bank QR switch. false hides the QR images and their note; bank name, number and holder stay.
-  // Off by default: components/Qr.tsx is a non-scannable placeholder, do not show it to real guests.
-  showBankQr: false,
+  // The images (public/images/gift) are the owners' real VietQR codes, cropped from their banking apps.
+  showBankQr: true,
   // Optional background music. Leave empty to hide the music button.
   musicSrc: "/50-nam-ve-sau.mp3",
   albumCount: 6,

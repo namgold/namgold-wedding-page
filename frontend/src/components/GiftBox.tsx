@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { wedding } from "@/content/data";
 import type { Copy } from "@/content/types";
-import { Qr } from "./Qr";
 
 const SPARKLES = [
   { top: "8%", left: "14%", size: 22, d: "0s" },
@@ -41,7 +40,7 @@ export function GiftBox({ t }: { t: Copy }) {
   }, [open]);
 
   return (
-    <div className="relative z-10 flex flex-col items-center justify-center px-6 pb-10 pt-8 md:pb-14 md:pt-12">
+    <div className={`relative ${open ? "z-50" : "z-10"} flex flex-col items-center justify-center px-6 pb-10 pt-8 md:pb-14 md:pt-12`}>
       <h2 className="h-title mb-4">{t.gift.heading}</h2>
       <button
         type="button"
@@ -75,7 +74,7 @@ export function GiftBox({ t }: { t: Copy }) {
             {DECOR.filter((d) => d.z === 3).map((d) => <Decor key={d.f} d={d} />)}
           </span>
         </span>
-        <span className="igb-hint absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium">{t.gift.tap}</span>
+        <span className="igb-hint absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm font-medium">{t.gift.tap}</span>
       </button>
 
       {open && (
@@ -88,20 +87,23 @@ export function GiftBox({ t }: { t: Copy }) {
               <h3 className="font-title text-[24px] font-bold uppercase tracking-[1px] text-white" style={{ textShadow: "1px 1px 2px rgba(0,0,0,.2)" }}>{t.gift.heading}</h3>
             </div>
             <div className="p-4 sm:p-6">
-              {wedding.showBankQr && <p className="mb-3 text-xs">{t.gift.qrNote}</p>}
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-center">
-                {wedding.gifts.map((g, i) => (
-                  <div key={g.role} className="flex max-w-[180px] flex-1 flex-col items-center sm:max-w-none">
-                    <h4 className="mb-2 flex min-h-[2rem] items-start justify-center text-center text-xs font-medium">{g.role === "groom" ? t.gift.groom : t.gift.bride} - {g.holder}</h4>
+              {wedding.showBankQr && <p className="mb-3 text-base">{t.gift.qrNote}</p>}
+              <div className="flex flex-col items-center gap-4 sm:gap-8 sm:flex-row sm:flex-wrap sm:items-start sm:justify-center">
+                {wedding.gifts.map((g) => (
+                  <div key={g.role} className="flex max-w-60 flex-1 flex-col items-center sm:max-w-none">
+                    <h4 className="mb-2 flex min-h-4 items-start justify-center text-center text-base font-medium">{g.role === "groom" ? t.gift.groom : t.gift.bride}</h4>
                     {wedding.showBankQr && (
-                      <div className="flex h-32 w-32 items-center justify-center rounded-xl bg-white p-2 shadow-lg sm:h-40 sm:w-40" style={{ border: "2px solid rgba(157,109,99,.125)" }}>
-                        <Qr seed={i + 3} label={`${g.bank} ${g.number}`} />
-                      </div>
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={g.qr} alt={`QR ${g.bank} ${g.holder}`} className="h-40 w-40 rounded-xl bg-white object-contain p-1 shadow-lg sm:h-44 sm:w-44" style={{ border: "2px solid rgba(157,109,99,.125)" }} />
                     )}
-                    <div className="mt-2 space-y-0.5 text-center">
-                      <p className="text-[10px]">{g.bank}</p>
-                      <p className="font-mono text-[10px]">{g.number}</p>
-                      <p className="text-[10px] font-semibold">{g.holder}</p>
+                    <div className="mt-2 space-y-1 text-center">
+                      <p className="flex items-center justify-center gap-1.5 text-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={g.icon} alt="" width={20} height={20} className="h-5 w-5" />
+                        {g.bank}
+                      </p>
+                      <p className="font-mono text-sm">{g.number}</p>
+                      <p className="text-sm font-semibold">{g.holder}</p>
                     </div>
                   </div>
                 ))}
