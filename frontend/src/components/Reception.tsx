@@ -46,8 +46,11 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
             className="w-full cursor-pointer overflow-hidden rounded-lg border transition-opacity active:opacity-80"
             style={{ borderColor: LINE }}
           >
-            <div className="border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
+            <div className="relative border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
               {t.monthsLong[p.m - 1]} / {p.y}
+              <svg viewBox="0 0 24 24" className="absolute right-3 top-1/2 h-[16px] w-[16px] -translate-y-1/2 text-rose md:right-5 md:h-[26px] md:w-[26px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M8 2v4M16 2v4M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8M3 10h18M16 19h6M19 16v6" />
+              </svg>
             </div>
             <div className="grid grid-cols-7 border-b-2 border-rose">
               {t.weekdaysShort.map((d, i) => (
