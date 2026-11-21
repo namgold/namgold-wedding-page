@@ -10,6 +10,31 @@ type Rsvp = {
 type Counts = { responses: number; attending: number; guests: number; declined: number };
 type Summary = Counts & { byPlace?: Record<string, Counts> };
 
+type Dir = "asc" | "desc";
+type Option<T extends string> = { value: T; label: string };
+
+const selectCls = "rounded-[10px] border border-rose bg-transparent px-3 py-1.5 text-rose";
+
+function SortSelect<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: Option<T>[]; onChange: (v: T) => void }) {
+  return (
+    <label className="flex items-center gap-2 text-sm font-semibold">
+      {label}
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value as T)} className={selectCls}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+/** Direction toggle. labels = [what "asc" means, what "desc" means], shown as the current state. */
+function DirButton({ dir, labels, onToggle }: { dir: Dir; labels: [string, string]; onToggle: () => void }) {
+  return (
+    <button type="button" className="btn btn-ghost !px-4 !py-1.5 text-sm" aria-label="Direction" onClick={onToggle}>
+      {dir === "asc" ? `↑ ${labels[0]}` : `↓ ${labels[1]}`}
+    </button>
+  );
+}
+
 const when = (sec: number) => new Date(sec * 1000).toLocaleString();
 
 /** Modal that asks the owner to confirm a permanent delete. Native <dialog>: focus trap and Esc come for free. */
@@ -91,21 +116,34 @@ export function AdminApp() {
   );
 }
 
+type MsgSort = "date" | "name" | "status";
+type MsgStatus = "all" | "hidden" | "shown";
+const MSG_SORTS: Option<MsgSort>[] = [{ value: "date", label: "Date" }, { value: "name", label: "Name" }, { value: "status", label: "Status" }];
+const MSG_STATUSES: Option<MsgStatus>[] = [{ value: "all", label: "All" }, { value: "hidden", label: "Hidden" }, { value: "shown", label: "Shown" }];
+const MSG_DIR_LABELS: Record<MsgSort, [string, string]> = { date: ["Oldest first", "Newest first"], name: ["A → Z", "Z → A"], status: ["Hidden first", "Shown first"] };
+
 function Messages({ deleteOn }: { deleteOn: boolean }) {
   const [items, setItems] = useState<Msg[] | null>(null);
   const [error, setError] = useState("");
+  const [counts, setCounts] = useState({ all: 0, shown: 0, hidden: 0 });
   const [toDelete, setToDelete] = useState<Msg | null>(null);
+  const [sort, setSort] = useState<MsgSort>("date");
+  const [dir, setDir] = useState<Dir>("desc"); // newest first
+  const [status, setStatus] = useState<MsgStatus>("all");
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
-    const r = await api<{ messages: Msg[] }>("/api/admin/messages");
-    if (r.ok) { setItems(r.data.messages); setError(""); } else setError("Could not load wishes.");
-  }, []);
+    const mine = ++latest.current;
+    const r = await api<{ messages: Msg[]; counts: typeof counts }>(`/api/admin/messages?${new URLSearchParams({ sort, dir, status })}`);
+    if (mine !== latest.current) return; // a newer request (another sort or filter) owns the list now
+    if (r.ok) { setItems(r.data.messages); setCounts(r.data.counts); setError(""); } else setError("Could not load wishes.");
+  }, [sort, dir, status]);
   useEffect(() => { load(); }, [load]);
 
   const toggle = async (m: Msg) => {
     setError("");
     const r = await api(`/api/admin/messages/${m.id}`, { method: "PATCH", body: JSON.stringify({ enabled: !m.enabled }) });
-    if (r.ok) setItems((cur) => cur && cur.map((x) => (x.id === m.id ? { ...x, enabled: !m.enabled } : x)));
+    if (r.ok) await load(); // reload: the filter, the order and the counts all depend on the status
     else setError("Could not update. Try again.");
   };
 
@@ -113,21 +151,25 @@ function Messages({ deleteOn }: { deleteOn: boolean }) {
     if (!toDelete) return;
     const r = await api(`/api/admin/messages/${toDelete.id}`, { method: "DELETE" });
     // 404 means it is already gone, so drop it from the list as well
-    if (r.ok || r.status === 404) { setItems((cur) => cur && cur.filter((x) => x.id !== toDelete.id)); setError(""); }
+    if (r.ok || r.status === 404) await load();
     else setError("Could not delete. Try again.");
     setToDelete(null);
   };
 
   if (!items) return <p className="mt-4">{error || "Loading…"}</p>;
-  const hidden = items.filter((m) => !m.enabled).length;
   return (
     <section className="mt-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm">{items.length} wishes, {hidden} hidden</p>
+        <p className="text-sm">{counts.all} wishes, {counts.hidden} hidden</p>
         <button type="button" className="btn btn-ghost" onClick={load}>Refresh</button>
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <SortSelect label="Sorting" value={sort} options={MSG_SORTS} onChange={setSort} />
+        <DirButton dir={dir} labels={MSG_DIR_LABELS[sort]} onToggle={() => setDir((d) => (d === "asc" ? "desc" : "asc"))} />
+        <SortSelect label="Status" value={status} options={MSG_STATUSES} onChange={setStatus} />
+      </div>
       {error && <p role="alert" className="mt-2 font-semibold text-wine">{error}</p>}
-      {items.length === 0 && <p className="mt-4 opacity-75">No wishes yet.</p>}
+      {items.length === 0 && <p className="mt-4 opacity-75">{counts.all === 0 ? "No wishes yet." : "No wishes match this filter."}</p>}
       <ul className="mt-3 space-y-3">
         {items.map((m) => (
           <li key={m.id} className={`card-surface p-4 ${m.enabled ? "" : "opacity-60"}`}>
@@ -151,15 +193,24 @@ function Messages({ deleteOn }: { deleteOn: boolean }) {
   );
 }
 
+type RsvpSort = "date" | "name";
+const RSVP_SORTS: Option<RsvpSort>[] = [{ value: "date", label: "Date" }, { value: "name", label: "Name" }];
+const RSVP_DIR_LABELS: Record<RsvpSort, [string, string]> = { date: ["Oldest first", "Newest first"], name: ["A → Z", "Z → A"] };
+
 function Rsvps({ deleteOn }: { deleteOn: boolean }) {
   const [data, setData] = useState<{ rsvps: Rsvp[]; summary: Summary } | null>(null);
   const [error, setError] = useState("");
   const [toDelete, setToDelete] = useState<Rsvp | null>(null);
+  const [sort, setSort] = useState<RsvpSort>("date");
+  const [dir, setDir] = useState<Dir>("desc"); // newest first
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
-    const r = await api<{ rsvps: Rsvp[]; summary: Summary }>("/api/admin/rsvps");
+    const mine = ++latest.current;
+    const r = await api<{ rsvps: Rsvp[]; summary: Summary }>(`/api/admin/rsvps?${new URLSearchParams({ sort, dir })}`);
+    if (mine !== latest.current) return;
     if (r.ok) { setData(r.data); setError(""); } else setError("Could not load RSVPs.");
-  }, []);
+  }, [sort, dir]);
   useEffect(() => { load(); }, [load]);
 
   const remove = async () => {
@@ -197,6 +248,10 @@ function Rsvps({ deleteOn }: { deleteOn: boolean }) {
       <div className="mt-3 flex gap-2">
         <button type="button" className="btn btn-ghost" onClick={load}>Refresh</button>
         <a className="btn btn-ghost" href="/api/admin/rsvps.csv" download>Download CSV</a>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <SortSelect label="Sorting" value={sort} options={RSVP_SORTS} onChange={setSort} />
+        <DirButton dir={dir} labels={RSVP_DIR_LABELS[sort]} onToggle={() => setDir((d) => (d === "asc" ? "desc" : "asc"))} />
       </div>
       {error && <p role="alert" className="mt-2 font-semibold text-wine">{error}</p>}
       {rsvps.length === 0 && <p className="mt-4 opacity-75">No RSVPs yet.</p>}
