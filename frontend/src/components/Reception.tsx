@@ -2,8 +2,9 @@
 import { useState } from "react";
 import type { Place } from "@/content/places";
 import type { Copy } from "@/content/types";
-import { buildIcs, monthGrid, partsOf } from "@/lib/date";
+import { googleCalendarUrl, monthGrid, partsOf, prefersIcs } from "@/lib/date";
 import { withReception } from "@/lib/fill";
+import { pagePath } from "@/lib/routes";
 import { DateLine } from "./DateLine";
 import { RsvpDialog } from "./RsvpDialog";
 
@@ -19,11 +20,12 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
   const time = `${p.hh}:${p.mm}`;
 
   const addToCalendar = () => {
-    const ics = buildIcs(withReception(t.eventTitle, t, place), place.receptionIso, place.receptionDurationMin, place.venueAddress);
-    const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: "wedding.ics" });
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    if (prefersIcs()) {
+      window.location.assign(`${pagePath(t.lang, place.slug)}/calendar.ics`);
+      return;
+    }
+    const title = withReception(t.eventTitle, t, place);
+    window.open(googleCalendarUrl(title, place.receptionIso, place.receptionDurationMin, place.venueAddress), "_blank", "noopener");
   };
 
   return (
@@ -50,10 +52,10 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
                   {week.map((d, i) => (
                     <div key={i} className="flex h-[28px] items-center justify-center md:h-[50px]">
                       {d === p.d ? (
-                        <div className="relative flex h-[24px] w-[26px] items-center justify-center md:h-[44px] md:w-[48px]">
+                        <button type="button" onClick={addToCalendar} aria-label={t.reception.addToCalendar} className="relative flex h-[24px] w-[26px] cursor-pointer items-center justify-center transition-transform active:scale-95 md:h-[44px] md:w-[48px]">
                           <svg viewBox="2 3 20 18.5" className="absolute inset-0 h-full w-full translate-y-[2px] fill-rose drop-shadow-sm" aria-hidden><path d={HEART} /></svg>
                           <span className="relative z-10 text-[11px] font-bold text-white md:text-[19px]">{d}</span>
-                        </div>
+                        </button>
                       ) : d ? (
                         <span className="text-[12px] md:text-[21px]">{d}</span>
                       ) : null}

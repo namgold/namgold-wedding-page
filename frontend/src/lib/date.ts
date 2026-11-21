@@ -36,6 +36,9 @@ export function monthGrid(y: number, m: number): (number | null)[] {
 const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 
+/** Reminders (minutes before the start) written into the .ics. */
+const REMINDERS_MIN = [120, 30];
+
 export function buildIcs(title: string, startIso: string, durationMin: number, location: string): string {
   const start = new Date(startIso);
   const end = new Date(start.getTime() + durationMin * 60_000);
@@ -50,9 +53,25 @@ export function buildIcs(title: string, startIso: string, durationMin: number, l
     `DTEND:${stamp(end)}`,
     `SUMMARY:${esc(title)}`,
     `LOCATION:${esc(location)}`,
+    ...REMINDERS_MIN.flatMap((m) => ["BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(title)}`, `TRIGGER:-PT${m}M`, "END:VALARM"]),
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
+}
+
+/** Google Calendar "create event" link: opens the Google Calendar app (Android) or web, prefilled. */
+export function googleCalendarUrl(title: string, startIso: string, durationMin: number, location: string): string {
+  const start = new Date(startIso);
+  const end = new Date(start.getTime() + durationMin * 60_000);
+  const q = new URLSearchParams({ action: "TEMPLATE", text: title, dates: `${stamp(start)}/${stamp(end)}`, location });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+
+/** iOS/iPadOS (any browser) and desktop Safari open a .ics link in the native Calendar sheet; everything else uses Google Calendar. */
+export function prefersIcs(ua: string = navigator.userAgent, touchPoints: number = navigator.maxTouchPoints): boolean {
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
+  const safariMac = /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua);
+  return ios || safariMac;
 }
 
 /** "10:58:41 30/7/2026" in the wedding timezone, from unix seconds. */
