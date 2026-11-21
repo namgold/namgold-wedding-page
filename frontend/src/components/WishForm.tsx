@@ -66,7 +66,7 @@ export function WishForm({ t, onSent }: { t: Copy; onSent: () => void }) {
         <span className="mt-1 block text-right text-xs opacity-70">{[...message].length}/500</span>
         <div className="mt-3 flex flex-wrap gap-2">
           {shown.map((w) => (
-            <button key={w} type="button" aria-pressed={message === w} onClick={() => setMessage(w)} className={`rounded-2xl border border-rose/60 px-3 py-1 text-left text-xs leading-snug transition-colors hover:bg-rose/10 ${message === w ? "bg-rose/15" : ""}`}>{w}</button>
+            <button key={w} type="button" aria-pressed={message === w} onClick={() => setMessage(w)} className={`whitespace-pre-line rounded-2xl border border-rose/60 px-3 py-1 text-left text-xs leading-snug transition-colors hover:bg-rose/10 ${message === w ? "bg-rose/15" : ""}`}>{w}</button>
           ))}
         </div>
         <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={website} onChange={(e) => setWebsite(e.target.value)} />
