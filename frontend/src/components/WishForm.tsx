@@ -57,16 +57,16 @@ export function WishForm({ t, onSent }: { t: Copy; onSent: () => void }) {
   };
 
   return (
-    <form onSubmit={submit} className="mx-auto mt-6 w-full max-w-full md:max-w-[600px]">
-      <div className="card-surface relative !bg-blush/85 p-6">
+    <form onSubmit={submit} className="mx-auto mt-6 w-full max-w-full md:max-w-150">
+      <div className="card-surface relative bg-blush/85! p-6">
         <div className="mb-4">
-          <input className="field" aria-label={t.guestbook.form.name} placeholder={`${t.guestbook.form.name}*`} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required autoComplete="name" />
+          <input className="field font-semibold" aria-label={t.guestbook.form.name} placeholder={`${t.guestbook.form.name}*`} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required autoComplete="name" />
         </div>
         <textarea className="field resize-none" rows={4} aria-label={t.guestbook.form.message} placeholder={`${t.guestbook.form.message}*`} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} required />
         <span className="mt-1 block text-right text-xs opacity-70">{[...message].length}/500</span>
         <div className="mt-3 flex flex-wrap gap-2">
           {shown.map((w) => (
-            <button key={w} type="button" aria-pressed={message === w} onClick={() => setMessage(w)} className={`whitespace-pre-line rounded-2xl border border-rose/60 px-3 py-1 text-left text-xs leading-snug transition-colors hover:bg-rose/10 ${message === w ? "bg-rose/15" : ""}`}>{w}</button>
+            <button key={w} type="button" aria-pressed={message === w} onClick={() => setMessage(w)} className={`whitespace-pre-line rounded-2xl border border-rose/60 px-3 py-1.5 text-left text-sm leading-snug transition-colors hover:bg-rose/10 ${message === w ? "bg-rose/15" : ""}`}>{w}</button>
           ))}
         </div>
         <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={website} onChange={(e) => setWebsite(e.target.value)} />

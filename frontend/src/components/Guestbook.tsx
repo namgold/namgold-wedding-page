@@ -21,12 +21,12 @@ const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
  */
 function GuestCard({ m }: { m?: PublicMessage }) {
   return (
-    <div className="card-surface !bg-rose/[.02] p-4 text-sm" aria-busy={!m}>
+    <div className="card-surface bg-blush/60! p-4 text-sm" aria-busy={!m}>
       <div className="flex items-start justify-between gap-3">
-        <span className="break-words font-semibold">{m ? m.name : <span className="flex h-5 items-center"><span className={`${bar} h-3.5 w-28`} /></span>}</span>
+        <span className="wrap-break-word font-semibold">{m ? m.name : <span className="flex h-5 items-center"><span className={`${bar} h-3.5 w-28`} /></span>}</span>
         <span className="shrink-0 text-xs opacity-70">{m ? fmtStamp(m.createdAt) : <span className="flex h-4 items-center"><span className={`${bar} h-3 w-24`} /></span>}</span>
       </div>
-      <p className="mt-2 break-words whitespace-pre-wrap leading-relaxed">
+      <p className="mt-2 wrap-break-word whitespace-pre-wrap leading-relaxed">
         {m ? m.message : (
           <>
             <span className="flex h-[22.75px] items-center"><span className={`${bar} h-3.5 w-full`} /></span>
@@ -73,7 +73,7 @@ export function Guestbook({ t }: { t: Copy }) {
       <WishForm t={t} onSent={onSent} />
 
       {total === null && !failed && (
-        <div className="mx-auto mt-8 w-full max-w-full space-y-3 pr-2 md:max-w-[600px]" role="status" aria-label={t.guestbook.loading}>
+        <div className="mx-auto mt-8 w-full max-w-full space-y-3 pr-2 md:max-w-150" role="status" aria-label={t.guestbook.loading}>
           {[0, 1, 2].map((i) => <GuestCard key={i} />)}
         </div>
       )}
@@ -86,7 +86,7 @@ export function Guestbook({ t }: { t: Copy }) {
       {total === 0 && <p className="mt-6 text-center text-sm">{t.guestbook.empty}</p>}
 
       {!!total && (
-        <div ref={scrollRef} className="mx-auto mt-8 max-h-[640px] w-full max-w-full overflow-y-auto pr-2 edge-fade md:max-w-[600px]" style={{ "--fade-top": `${fadeTop}px`, "--fade-bottom": `${fadeBottom}px` } as React.CSSProperties}>
+        <div ref={scrollRef} className="mx-auto mt-8 max-h-160 w-full max-w-full overflow-y-auto pr-2 edge-fade md:max-w-150" style={{ "--fade-top": `${fadeTop}px`, "--fade-bottom": `${fadeBottom}px` } as React.CSSProperties}>
           <ul className="relative w-full" style={{ height: v.getTotalSize() }}>
             {items.map((it) => {
               const m = rows.get(it.index);
