@@ -14,7 +14,7 @@ const estimateRow = () => 110;
 const bar = "block rounded bg-rose/15 motion-safe:animate-pulse";
 
 /**
- * One wish. Without `m` it is a skeleton: one bar for each of three lines (the name and two message lines, no block),
+ * One wish. Without `m` it is a skeleton: one bar for each of three lines (the name and two message lines, no block) plus one for the date (16px line box of text-xs),
  * each in a line box of the real line height (20px for the semibold text-sm name, 22.75px for the leading-relaxed
  * text-sm message), so it is the size of a wish with a two-line message and a row fills in place when its page arrives.
  */
@@ -23,7 +23,7 @@ function GuestCard({ m }: { m?: PublicMessage }) {
     <div className="card-surface !bg-rose/[.02] p-4 text-sm" aria-busy={!m}>
       <div className="flex items-start justify-between gap-3">
         <span className="break-words font-semibold">{m ? m.name : <span className="flex h-5 items-center"><span className={`${bar} h-3.5 w-28`} /></span>}</span>
-        <span className="shrink-0 text-xs opacity-70">{m && fmtStamp(m.createdAt)}</span>
+        <span className="shrink-0 text-xs opacity-70">{m ? fmtStamp(m.createdAt) : <span className="flex h-4 items-center"><span className={`${bar} h-3 w-24`} /></span>}</span>
       </div>
       <p className="mt-2 break-words whitespace-pre-wrap leading-relaxed">
         {m ? m.message : (
