@@ -15,6 +15,9 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
   const grid = monthGrid(p.y, p.m);
   const weeks = Array.from({ length: Math.ceil(grid.length / 7) }, (_, w) => grid.slice(w * 7, w * 7 + 7));
   const eventWeek = Math.floor(grid.indexOf(p.d) / 7);
+  // Leading blanks (before the 1st) show the previous month's last days, greyed.
+  const lead = grid.indexOf(1);
+  const prevLast = new Date(Date.UTC(p.y, p.m - 1, 0)).getUTCDate();
   // Touch press is tracked with touch events, not :active: the browser drops :active as soon as a scroll starts.
   const [pressed, setPressed] = useState(false);
   const time = `${p.hh}:${p.mm}`;
@@ -47,7 +50,7 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
             onTouchCancel={() => setPressed(false)}
             data-pressed={pressed || undefined}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addToCalendar(); } }}
-            className="w-full cursor-pointer select-none overflow-hidden bg-blush/90 [-webkit-touch-callout:none] rounded-lg border transition-[translate,box-shadow] duration-200 hover:-translate-x-[3px] hover:-translate-y-[3px] hover:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] data-pressed:-translate-x-[3px] data-pressed:-translate-y-[3px] data-pressed:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] motion-reduce:transition-none"
+            className="w-full cursor-pointer select-none overflow-hidden bg-blush/85 [-webkit-touch-callout:none] rounded-lg border transition-[translate,box-shadow] duration-200 hover:-translate-x-[3px] hover:-translate-y-[3px] hover:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] data-pressed:-translate-x-[3px] data-pressed:-translate-y-[3px] data-pressed:shadow-[4px_4px_0_rgb(157_109_99/0.22),8px_8px_18px_rgb(157_109_99/0.2)] motion-reduce:transition-none"
             style={{ borderColor: LINE }}
           >
             <div className="relative border-b py-2.5 text-center text-[13px] font-semibold tracking-wide md:text-[22px]" style={{ borderColor: LINE }}>
@@ -73,6 +76,8 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
                         </div>
                       ) : d ? (
                         <span className="text-[12px] md:text-[21px]">{d}</span>
+                      ) : w === 0 ? (
+                        <span className="text-[12px] text-[#9d6d63]/40 md:text-[21px]">{prevLast - lead + 1 + i}</span>
                       ) : null}
                     </div>
                   ))}
@@ -82,7 +87,7 @@ export function Reception({ t, place }: { t: Copy; place: Place }) {
           </div>
         </div>
 
-        <button type="button" onClick={addToCalendar} className="mt-4 inline-flex items-center justify-center text-sm tracking-wider underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+        <button type="button" onClick={addToCalendar} className="inline-flex items-center justify-center text-base tracking-wider underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
           {t.reception.addToCalendar}
         </button>
       </div>
