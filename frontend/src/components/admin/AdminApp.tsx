@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 type Msg = { id: number; name: string; message: string; enabled: boolean; createdAt: number };
@@ -12,10 +12,36 @@ type Summary = Counts & { byPlace?: Record<string, Counts> };
 
 const when = (sec: number) => new Date(sec * 1000).toLocaleString();
 
+/** Modal that asks the owner to confirm a permanent delete. Native <dialog>: focus trap and Esc come for free. */
+function ConfirmDelete({ what, onConfirm, onCancel }: { what: string; onConfirm: () => Promise<void>; onCancel: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { ref.current?.showModal(); }, []);
+  const confirm = async () => { setBusy(true); await onConfirm(); setBusy(false); };
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby="confirm-delete-title"
+      onCancel={(e) => { e.preventDefault(); if (!busy) onCancel(); }}
+      onClick={(e) => { if (e.target === ref.current && !busy) onCancel(); }}
+      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-lg bg-white p-5 text-inherit shadow-xl backdrop:bg-black/50"
+    >
+      <h2 id="confirm-delete-title" className="font-serif text-xl">Delete permanently?</h2>
+      <p className="mt-2 break-words">{what}</p>
+      <p className="mt-2 text-sm">This cannot be undone.</p>
+      <div className="mt-4 flex justify-end gap-2">
+        <button type="button" className="btn btn-ghost" autoFocus disabled={busy} onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn" disabled={busy} onClick={confirm}>{busy ? "Deleting…" : "Delete"}</button>
+      </div>
+    </dialog>
+  );
+}
+
 export function AdminApp() {
   const [auth, setAuth] = useState<"loading" | "ok" | "forbidden" | "unconfigured" | "error">("loading");
   const [email, setEmail] = useState("");
   const [tab, setTab] = useState<"messages" | "rsvps">("messages");
+  const [deleteOn, setDeleteOn] = useState(false); // off on every page load, so deleting is always a deliberate choice
 
   useEffect(() => {
     api<{ email: string }>("/api/admin/me").then((r) => {
@@ -42,21 +68,33 @@ export function AdminApp() {
         <h1 className="font-serif text-2xl">Wedding admin</h1>
         <p className="text-sm opacity-70">{email}</p>
       </header>
-      <nav className="mt-4 flex gap-2" aria-label="Sections">
+      <nav className="mt-4 flex flex-wrap items-center gap-2" aria-label="Sections">
         {(["messages", "rsvps"] as const).map((k) => (
           <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`btn ${tab === k ? "" : "btn-ghost"}`}>
             {k === "messages" ? "Wishes" : "RSVPs"}
           </button>
         ))}
+        <button
+          type="button" role="switch" aria-checked={deleteOn} aria-label="Delete"
+          onClick={() => setDeleteOn((v) => !v)}
+          className="ml-auto flex items-center gap-2 text-sm font-semibold"
+        >
+          Delete
+          <span className={`relative h-8 w-[4.5rem] rounded-full border transition-colors ${deleteOn ? "border-red-700 bg-red-600" : "border-rose bg-rose/10"}`}>
+            <span className={`absolute top-1/2 -translate-y-1/2 text-xs font-bold uppercase ${deleteOn ? "left-3 text-white" : "right-3 text-rose-deep"}`}>{deleteOn ? "On" : "Off"}</span>
+            <span className={`absolute top-0.5 h-6 w-6 rounded-full shadow transition-all ${deleteOn ? "left-[2.75rem] bg-white" : "left-0.5 bg-rose"}`} />
+          </span>
+        </button>
       </nav>
-      {tab === "messages" ? <Messages /> : <Rsvps />}
+      {tab === "messages" ? <Messages deleteOn={deleteOn} /> : <Rsvps deleteOn={deleteOn} />}
     </main>
   );
 }
 
-function Messages() {
+function Messages({ deleteOn }: { deleteOn: boolean }) {
   const [items, setItems] = useState<Msg[] | null>(null);
   const [error, setError] = useState("");
+  const [toDelete, setToDelete] = useState<Msg | null>(null);
 
   const load = useCallback(async () => {
     const r = await api<{ messages: Msg[] }>("/api/admin/messages");
@@ -69,6 +107,15 @@ function Messages() {
     const r = await api(`/api/admin/messages/${m.id}`, { method: "PATCH", body: JSON.stringify({ enabled: !m.enabled }) });
     if (r.ok) setItems((cur) => cur && cur.map((x) => (x.id === m.id ? { ...x, enabled: !m.enabled } : x)));
     else setError("Could not update. Try again.");
+  };
+
+  const remove = async () => {
+    if (!toDelete) return;
+    const r = await api(`/api/admin/messages/${toDelete.id}`, { method: "DELETE" });
+    // 404 means it is already gone, so drop it from the list as well
+    if (r.ok || r.status === 404) { setItems((cur) => cur && cur.filter((x) => x.id !== toDelete.id)); setError(""); }
+    else setError("Could not delete. Try again.");
+    setToDelete(null);
   };
 
   if (!items) return <p className="mt-4">{error || "Loading…"}</p>;
@@ -89,26 +136,39 @@ function Messages() {
                 <p className="font-semibold break-words">{m.name}</p>
                 <p className="text-xs opacity-70">{when(m.createdAt)}</p>
               </div>
-              <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => toggle(m)}>{m.enabled ? "Hide" : "Show"}</button>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => toggle(m)}>{m.enabled ? "Hide" : "Show"}</button>
+                {deleteOn && <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => setToDelete(m)}>Delete</button>}
+              </div>
             </div>
             <p className="mt-2 break-words whitespace-pre-wrap">{m.message}</p>
-            {!m.enabled && <p className="mt-2 text-xs font-semibold uppercase tracking-wider">Hidden from the public page</p>}
+            {!m.enabled && <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-red-600">Hidden from the public page</p>}
           </li>
         ))}
       </ul>
+      {toDelete && <ConfirmDelete what={`Wish from ${toDelete.name}: “${toDelete.message.length > 120 ? toDelete.message.slice(0, 120) + "…" : toDelete.message}”`} onConfirm={remove} onCancel={() => setToDelete(null)} />}
     </section>
   );
 }
 
-function Rsvps() {
+function Rsvps({ deleteOn }: { deleteOn: boolean }) {
   const [data, setData] = useState<{ rsvps: Rsvp[]; summary: Summary } | null>(null);
   const [error, setError] = useState("");
+  const [toDelete, setToDelete] = useState<Rsvp | null>(null);
 
   const load = useCallback(async () => {
     const r = await api<{ rsvps: Rsvp[]; summary: Summary }>("/api/admin/rsvps");
     if (r.ok) { setData(r.data); setError(""); } else setError("Could not load RSVPs.");
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const remove = async () => {
+    if (!toDelete) return;
+    const r = await api(`/api/admin/rsvps/${toDelete.id}`, { method: "DELETE" });
+    if (r.ok || r.status === 404) await load(); // reload: totals and "replaced" marks depend on the other rows
+    else setError("Could not delete. Try again.");
+    setToDelete(null);
+  };
 
   if (!data) return <p className="mt-4">{error || "Loading…"}</p>;
   const { summary: s, rsvps } = data;
@@ -150,9 +210,15 @@ function Rsvps() {
             <p className="mt-1">{r.attending ? `Attending · ${r.guests} guest${r.guests === 1 ? "" : "s"}` : "Can't attend"}{r.superseded && " · replaced by a newer response"}</p>
             {r.dietary && <p className="text-sm break-words">Diet: {r.dietary}</p>}
             {r.message && <p className="mt-1 break-words whitespace-pre-wrap">{r.message}</p>}
+            {deleteOn && (
+              <div className="mt-2 flex justify-end">
+                <button type="button" className="btn btn-ghost !px-4 !py-1" onClick={() => setToDelete(r)}>Delete</button>
+              </div>
+            )}
           </li>
         ))}
       </ul>
+      {toDelete && <ConfirmDelete what={`RSVP from ${toDelete.name} (${toDelete.attending ? `attending, ${toDelete.guests} guest${toDelete.guests === 1 ? "" : "s"}` : "can't attend"})`} onConfirm={remove} onCancel={() => setToDelete(null)} />}
     </section>
   );
 }

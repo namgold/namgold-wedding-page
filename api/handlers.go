@@ -44,7 +44,9 @@ func (s *Server) Routes() http.Handler {
 	m.HandleFunc("GET /api/admin/me", s.admin(s.me))
 	m.HandleFunc("GET /api/admin/messages", s.admin(s.adminMessages))
 	m.HandleFunc("PATCH /api/admin/messages/{id}", s.admin(s.adminSetEnabled))
+	m.HandleFunc("DELETE /api/admin/messages/{id}", s.admin(s.adminDelete("message_deleted", "delete_message", s.store.DeleteMessage)))
 	m.HandleFunc("GET /api/admin/rsvps", s.admin(s.adminRSVPs))
+	m.HandleFunc("DELETE /api/admin/rsvps/{id}", s.admin(s.adminDelete("rsvp_deleted", "delete_rsvp", s.store.DeleteRSVP)))
 	m.HandleFunc("GET /api/admin/rsvps.csv", s.admin(s.adminRSVPsCSV))
 	return noStore(m)
 }
@@ -309,6 +311,28 @@ func (s *Server) adminSetEnabled(w http.ResponseWriter, r *http.Request) {
 	default:
 		slog.Info("message_moderated", "id", id, "enabled", *in.Enabled, "admin", r.Context().Value(ctxKey{}))
 		writeJSON(w, 200, map[string]bool{"ok": true})
+	}
+}
+
+// adminDelete builds a handler that permanently deletes the row named by {id}. It logs only the id.
+func (s *Server) adminDelete(event, op string, del func(int64) (bool, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			fail(w, 400, "invalid")
+			return
+		}
+		ok, err := del(id)
+		switch {
+		case err != nil:
+			slog.Error("db_error", "op", op, "err", err)
+			fail(w, 500, "server")
+		case !ok:
+			fail(w, 404, "not_found")
+		default:
+			slog.Info(event, "id", id, "admin", r.Context().Value(ctxKey{}))
+			writeJSON(w, 200, map[string]bool{"ok": true})
+		}
 	}
 }
 

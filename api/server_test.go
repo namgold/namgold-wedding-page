@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -318,6 +319,39 @@ func TestCleanStripsControlAndBidi(t *testing.T) {
 	}
 	if got := clean("x\r\n\n\n\n\ny", true); got != "x\n\ny" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestAdminDelete(t *testing.T) {
+	e := newEnv(t, nil)
+	mid, _ := e.srv.store.AddMessage("A", "hello")
+	rid, _ := e.srv.store.AddRSVP(RSVP{Name: "B", Side: "groom", Attending: true, Guests: 2})
+	h := map[string]string{"Cf-Access-Jwt-Assertion": e.token(e.goodClaims(), "RS256")}
+	mp, rp := fmt.Sprintf("/api/admin/messages/%d", mid), fmt.Sprintf("/api/admin/rsvps/%d", rid)
+
+	if c := e.do("DELETE", mp, "", nil).Code; c != 403 {
+		t.Errorf("no token: %d", c)
+	}
+	if c := e.do("DELETE", mp, "", h).Code; c != 403 {
+		t.Errorf("no origin: %d", c)
+	}
+	h["Origin"] = "https://wedding.test"
+	for _, p := range []string{mp, rp} {
+		if c := e.do("DELETE", p, "", h).Code; c != 200 {
+			t.Fatalf("delete %s: %d", p, c)
+		}
+		if c := e.do("DELETE", p, "", h).Code; c != 404 {
+			t.Errorf("delete twice %s: %d", p, c)
+		}
+	}
+	if c := e.do("DELETE", "/api/admin/messages/abc", "", h).Code; c != 400 {
+		t.Errorf("bad id: %d", c)
+	}
+	if b := e.do("GET", "/api/admin/messages", "", h).Body.String(); strings.Contains(b, "hello") {
+		t.Errorf("message still listed: %s", b)
+	}
+	if b := e.do("GET", "/api/admin/rsvps", "", h).Body.String(); strings.Contains(b, `"name":"B"`) {
+		t.Errorf("rsvp still listed: %s", b)
 	}
 }
 

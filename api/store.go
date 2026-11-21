@@ -169,6 +169,19 @@ func (s *Store) SetEnabled(id int64, enabled bool) (bool, error) {
 	return n > 0, nil
 }
 
+// DeleteMessage and DeleteRSVP permanently remove a row and report whether it existed.
+func (s *Store) DeleteMessage(id int64) (bool, error) { return s.deleteRow(`messages`, id) }
+func (s *Store) DeleteRSVP(id int64) (bool, error)    { return s.deleteRow(`rsvps`, id) }
+
+func (s *Store) deleteRow(table string, id int64) (bool, error) {
+	r, err := s.db.Exec(`DELETE FROM `+table+` WHERE id=?`, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := r.RowsAffected()
+	return n > 0, nil
+}
+
 func (s *Store) AddRSVP(r RSVP) (int64, error) {
 	res, err := s.db.Exec(`INSERT INTO rsvps(name,side,place,attending,guests,dietary,message,created_at) VALUES(?,?,?,?,?,?,?,?)`,
 		r.Name, r.Side, r.Place, r.Attending, r.Guests, r.Dietary, r.Message, time.Now().Unix())
